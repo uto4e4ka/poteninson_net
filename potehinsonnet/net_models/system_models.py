@@ -1,15 +1,9 @@
 from datetime import datetime
+from pydantic import BaseModel
 
+class ServiceHealthMessage(BaseModel):
+    type: str = "plugin"
+    name: str
+    status: str
+    time: datetime = datetime.now()
 
-def service_info_model(
-        name:str,
-        status:str,
-        time:datetime = datetime.now(),
-type:str = "plugin"
-):
-    return {"type":type,
-            "name":name,
-            "status":status,
-            "time":time}
-def test():
-    return None
