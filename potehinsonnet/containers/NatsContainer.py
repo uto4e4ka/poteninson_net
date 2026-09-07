@@ -20,7 +20,13 @@ async def _init_nats(url:str)->AsyncGenerator[NatsClient, None]:
     await nats.close()
 
 class NatsContainer(containers.DeclarativeContainer):
-    config: Configuration = providers.Configuration()
+    config: Configuration = providers.Configuration(
+        default={
+            "nats": {
+                "url": "nats://localhost:4222",
+            },
+        }
+    )
     nats: Resource[NatsClient] = providers.Resource(_init_nats,
                                                                 url = config.nats.url)
     health: Resource[Health] = providers.Resource(_init_health,
