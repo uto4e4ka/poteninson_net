@@ -1,5 +1,7 @@
 
 from enum import Enum
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 '''
@@ -67,6 +69,7 @@ class CommandArgument(BaseModel):
     type: str = "str"
     required: bool = True
     description: str = ""
+    default: Any = None
 
 class Command(BaseModel):
     name: str
