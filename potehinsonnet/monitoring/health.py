@@ -7,11 +7,25 @@ class Health:
     def __init__(self,client: NatsClient,plugin_name:str):
         self.nats_client = client
         self.plugin_name = plugin_name
-        asyncio.create_task(self._init({}))
-    async def send_status(self,message:dict):
-        await self.nats_client.publish("system.info.request",ServiceHealthMessage(name=self.plugin_name,status="ENABLED✅").model_dump(mode="json"))
+        self._sub = None
+
+    async def send_status(self,status = "ENABLED✅"):
+        await self.nats_client.publish("system.info.request",ServiceHealthMessage(name=self.plugin_name,status=status).model_dump(mode="json"))
         print("send status")
 
-    async def _init(self,message:dict):
-        await self.send_status({})
-        await self.nats_client.subscribe("system.info.response", self.send_status)
+    async def _handle_request(self,body):
+        await self.send_status()
+
+    async def start(self):
+        self._sub = await self.nats_client.subscribe("system.info.response", self._handle_request)
+        await self.send_status()
+
+    async def stop(self):
+        await self.send_status(status="DISABLED❌")
+        if self._sub:
+            try:
+                await self._sub.unsubscribe()
+            except Exception as e:
+                print(f"Failed to unsubscribe: {e}")
+            self._sub = None
+
