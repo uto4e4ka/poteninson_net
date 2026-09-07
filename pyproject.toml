@@ -1,6 +1,6 @@
 [project]
 name = "potehinsonnet"
-version = "0.1.33"
+version = "0.1.37"
 description = ""
 authors = [
     {name = "Azhestkov"}

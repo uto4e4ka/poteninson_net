@@ -1,6 +1,6 @@
 
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 '''
 ENUMS
@@ -42,11 +42,7 @@ class Guild(BaseModel):
     id: int
     name: str
 
-class Command(BaseModel):
-    name: str
-    description: str
-    service:str
-    tag:str
+
 
 '''
 Messages
@@ -66,9 +62,18 @@ class NatsMessage(BaseModel):
 '''
 Command
 '''
-class CommandRegister(BaseModel):
-    command:list[Command]
+class CommandArgument(BaseModel):
+    name: str
+    type: str = "str"
+    required: bool = True
+    description: str = ""
 
+class Command(BaseModel):
+    name: str
+    description: str
+    service:str
+    tag:str
+    args: list[CommandArgument] = Field(default_factory=list)
 '''
 Voice
 '''

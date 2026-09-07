@@ -7,10 +7,12 @@ from potehinsonnet.monitoring.health import Health
 
 from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
+from potehinsonnet.steup.command_registrator import CommandRegistrator
+
 
 @asynccontextmanager
-async def _init_health(client:NatsClient,plugin_name:str)->AsyncGenerator[Health, None]:
-    health = Health(client,plugin_name)
+async def _init_health(client:NatsClient,plugin_name:str,plugin_label:str)->AsyncGenerator[Health, None]:
+    health = Health(client,plugin_name,plugin_label)
     await health.start()
     yield health
     await health.stop()
@@ -34,4 +36,11 @@ class NatsContainer(containers.DeclarativeContainer):
                                                                 url = config.nats.url)
     health: Resource[Health] = providers.Resource(_init_health,
                                                   client = nats,
-                                                  plugin_name = config.plugin.name)
+                                                  plugin_name = config.plugin.name,
+                                                  plugin_label = config.plugin.label
+                                                  )
+    command_registrator: Singleton[CommandRegistrator] = providers.Singleton(CommandRegistrator,
+                                                                             nats_client = nats,
+                                                                             plugin_name = config.plugin.name,
+                                                                             plugin_label = config.plugin.label
+                                                                             )

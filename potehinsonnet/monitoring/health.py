@@ -4,9 +4,10 @@ from potehinsonnet.net_models.system_models import ServiceHealthMessage
 from potehinsonnet.net import NatsClient
 
 class Health:
-    def __init__(self,client: NatsClient,plugin_name:str):
+    def __init__(self,client: NatsClient,plugin_label:str,plugin_name:str):
         self.nats_client = client
         self.plugin_name = plugin_name
+        self.plugin_label = plugin_label
         self._sub = None
 
     async def send_status(self,status = "ENABLED✅"):
