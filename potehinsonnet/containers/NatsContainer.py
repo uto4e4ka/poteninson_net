@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from dependency_injector import containers,providers
@@ -7,12 +8,14 @@ from potehinsonnet.monitoring.health import Health
 from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
 
+@asynccontextmanager
 async def _init_health(client:NatsClient,plugin_name:str)->AsyncGenerator[Health, None]:
     health = Health(client,plugin_name)
     await health.start()
     yield health
     await health.stop()
 
+@asynccontextmanager
 async def _init_nats(url:str)->AsyncGenerator[NatsClient, None]:
     nats = NatsClient(url)
     await nats.connect()
