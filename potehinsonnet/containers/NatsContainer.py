@@ -12,9 +12,15 @@ async def _init_health(client:NatsClient,plugin_name:str)->AsyncGenerator[Health
     yield health
     await health.stop()
 
-class NatsContainer(providers.Container):
+async def _init_nats(url:str)->AsyncGenerator[NatsClient, None]:
+    nats = NatsClient(url)
+    await nats.connect()
+    yield nats
+    await nats.close()
+
+class NatsContainer(containers.DeclarativeContainer):
     config: Configuration = providers.Configuration()
-    nats: Singleton[NatsClient] = providers.Singleton(NatsClient,
+    nats: Resource[NatsClient] = providers.Resource(_init_nats,
                                                                 url = config.nats.url)
     health: Resource[Health] = providers.Resource(_init_health,
                                                   client = nats,
