@@ -77,6 +77,11 @@ class Command(BaseModel):
     service:str
     tag:str
     args: list[CommandArgument] = Field(default_factory=list)
+
+class ExecutedCommand(Command):
+    user: User
+    guild: Guild
+    channel: Channel
 '''
 Voice
 '''
