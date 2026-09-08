@@ -9,9 +9,20 @@ class CommandRegistrator:
         self.plugin_name = plugin_name
         self.nats_client = nats_client
         self.plugin_label = plugin_label
+        self.subs = {}
 
     async def register_command(self,command:Command, listener: Callable[[dict], Awaitable[None]],):
         await self.nats_client.publish("discord.command.register",command.model_dump(mode='json'))
         async def on_call(body):
             await listener(body)
-        await self.nats_client.subscribe(f"discord.command.execute.{command.service}.{command.name}",on_call)
+        self.subs[f"{command.service}.{command.name}"] = await self.nats_client.subscribe(
+            f"discord.command.execute.{command.service}.{command.name}",
+            on_call)
+
+
+    async def unregister_command(self,command:Command):
+        await self.nats_client.publish("discord.command.remove",command.model_dump(mode='json'))
+        key = f"{command.service}.{command.name}"
+        sub = self.subs.pop(key,None)
+        if sub:
+            sub.unsubscribe()
