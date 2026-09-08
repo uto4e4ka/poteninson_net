@@ -7,6 +7,7 @@ from potehinsonnet.monitoring.health import Health
 
 from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
+from potehinsonnet.net_models.system_models import Service
 from potehinsonnet.steup.command_registrator import CommandRegistrator
 
 
@@ -34,13 +35,21 @@ class NatsContainer(containers.DeclarativeContainer):
     )
     nats: Resource[NatsClient] = providers.Resource(_init_nats,
                                                                 url = config.nats.url)
+    plugin: Singleton[Service] = providers.Singleton(Service,
+                                                    type= config.plugin.type,
+                                                    name = config.plugin.name,
+                                                    label = config.plugin.label,
+                                                    description = config.plugin.description,
+                                                    author = config.plugin.author,
+                                                    version = config.plugin.version,
+                                                    icon = config.plugin.icon,
+                                                    site = config.plugin.site
+                                                    )
     health: Resource[Health] = providers.Resource(_init_health,
                                                   client = nats,
-                                                  plugin_name = config.plugin.name,
-                                                  plugin_label = config.plugin.label
+                                                  plugin = plugin,
                                                   )
     command_registrator: Singleton[CommandRegistrator] = providers.Singleton(CommandRegistrator,
                                                                              nats_client = nats,
-                                                                             plugin_name = config.plugin.name,
-                                                                             plugin_label = config.plugin.label
+                                                                             plugin = plugin,
                                                                              )

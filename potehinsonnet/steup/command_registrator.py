@@ -3,12 +3,14 @@ from typing import Callable, Awaitable
 
 from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.discord_models import Command
+from potehinsonnet.net_models.system_models import Service
+
 
 class CommandRegistrator:
-    def __init__(self,nats_client:NatsClient,plugin_name:str,plugin_label:str):
-        self.plugin_name = plugin_name
+    def __init__(self,nats_client:NatsClient,plugin:Service):
+        self.plugin_name = plugin.name
         self.nats_client = nats_client
-        self.plugin_label = plugin_label
+        self.plugin_label = plugin.label
         self.subs = {}
 
     async def register_command(self,command:Command, listener: Callable[[dict], Awaitable[None]],):
