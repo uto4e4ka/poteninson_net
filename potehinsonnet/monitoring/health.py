@@ -14,6 +14,7 @@ class Health:
         self.plugin = plugin
         self._subs = []
         self.has_registration = False
+        self._on_registration = []
 
     async def send_status(self,status = "ENABLED✅"):
         await self.nats_client.publish("system.info.request",
