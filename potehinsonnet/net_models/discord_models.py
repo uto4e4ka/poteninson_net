@@ -1,6 +1,6 @@
 
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -68,6 +68,17 @@ class Guild(BaseModel):
     id: int
     name: str
 
+class EmbedField(BaseModel):
+    name: str
+    value: str
+    inline: bool = True  # По умолчанию поля располагаются в одну строку
+
+
+class Embed(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[int] = None  # Например, 0x00FF00 или 65280
+    fields: List[EmbedField] = Field(default_factory=list)
 
 
 '''
@@ -115,6 +126,11 @@ class ExecutedCommand(BaseModel):
     guild: Guild
     channel: Channel
     args: list[ExecutedArgs] = Field(default_factory=list)
+
+class ExecutedCommandResponse(BaseModel):
+    message: str
+    ephemeral: bool
+    embeds: list[Embed]
 '''
 Voice
 '''
