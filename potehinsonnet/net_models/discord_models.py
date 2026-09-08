@@ -68,17 +68,66 @@ class Guild(BaseModel):
     id: int
     name: str
 
+
+class EmbedFooter(BaseModel):
+    text: str  # Текст в самом низу (ОБЯЗАТЕЛЬНО для Footer)
+    icon_url: Optional[str] = None  # Маленькая иконка слева от текста
+    proxy_icon_url: Optional[str] = None  # Кэшированная иконка (обычно заполняет сам Discord)
+
+
+class EmbedImage(BaseModel):
+    url: str  # URL изображения
+    proxy_url: Optional[str] = None  # Кэшированный URL
+    height: Optional[int] = None  # Высота картинки в px
+    width: Optional[int] = None  # Ширина картинки в px
+
+
+class EmbedThumbnail(BaseModel):
+    url: str  # URL превью (маленькая картинка справа вверху)
+    proxy_url: Optional[str] = None
+    height: Optional[int] = None
+    width: Optional[int] = None
+
+
+class EmbedVideo(BaseModel):  # Только для чтения (заполняется Discord для плееров)
+    url: Optional[str] = None
+    proxy_url: Optional[str] = None
+    height: Optional[int] = None
+    width: Optional[int] = None
+
+
+class EmbedProvider(BaseModel):  # Только для чтения (например, YouTube / Spotify)
+    name: Optional[str] = None
+    url: Optional[str] = None
+
+
+class EmbedAuthor(BaseModel):
+    name: str  # Имя автора вверху (ОБЯЗАТЕЛЬНО для Author)
+    url: Optional[str] = None  # Ссылка при клике на имя
+    icon_url: Optional[str] = None  # Иконка слева от имени
+    proxy_icon_url: Optional[str] = None
+
+
 class EmbedField(BaseModel):
-    name: str
-    value: str
-    inline: bool = True  # По умолчанию поля располагаются в одну строку
+    name: str  # Заголовок поля (до 256 символов)
+    value: str  # Содержимое поля (до 1024 символов)
+    inline: bool = True  # Располагать в одну строку с соседними (True/False)
 
 
 class Embed(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    color: Optional[int] = None  # Например, 0x00FF00 или 65280
-    fields: List[EmbedField] = Field(default_factory=list)
+    title: Optional[str] = None  # Заголовок карточки (до 256 символов)
+    description: Optional[str] = None  # Главный текст карточки (до 4096 символов)
+    url: Optional[str] = None  # Ссылка при клике на заголовок (Title)
+    timestamp: Optional[datetime] = None  # Время в формате ISO8601/datetime (отображается в подвале)
+    color: Optional[int] = None  # Цвет боковой полосы (HEX в integer, напр. 0xFF0000 или 16711680)
+
+    footer: Optional[EmbedFooter] = None  # Подвал карточки
+    image: Optional[EmbedImage] = None  # Большая картинка внизу
+    thumbnail: Optional[EmbedThumbnail] = None  # Миниатюра справа вверху
+    video: Optional[EmbedVideo] = None  # Видео (только для чтения)
+    provider: Optional[EmbedProvider] = None  # Провайдер (только для чтения)
+    author: Optional[EmbedAuthor] = None  # Блок автора в самом верху
+    fields: List[EmbedField] = Field(default_factory=list)  # До 25 колонок/полей
 
 
 '''
