@@ -13,11 +13,10 @@ class CommandRegistrator:
         self.plugin_label = plugin.label
         self.subs = {}
 
-    async def register_command(self,command:Command, listener: Callable[[dict], Awaitable[None]],):
+    async def register_command(self,command:Command, listener: Callable[[dict], Awaitable[dict]],):
         await self.nats_client.publish("discord.command.register",command.model_dump(mode='json'))
         async def on_call(body)->dict:
-            await listener(body)
-            return {"message":"ok"}
+            return await listener(body)
         self.subs[f"{command.service}.{command.name}"] = await self.nats_client.subscribe(
             f"discord.command.execute.{command.service}.{command.name}",
             on_call)
