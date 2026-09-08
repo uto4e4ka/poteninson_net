@@ -15,6 +15,7 @@ class Health:
         self._subs = []
         self.has_registration = False
         self._on_registration = []
+        self.main_service = None
 
     async def send_status(self,status = "ENABLED✅"):
         await self.nats_client.publish("system.info.request",
@@ -36,14 +37,20 @@ class Health:
         response = ServiceRegistrationResponse.model_validate(response)
         if response.success:
             print("Plugin successfully registered")
+            self.has_registration = True
+            self.main_service = Service(**response.model_dump())
             await self._notify_all()
 
     async def _notify_all(self):
         for callback in self._on_registration:
             await callback(self.plugin)
 
+
+
     async def add_listener(self,listener: Callable[[Service], Awaitable[None]])-> None:
         self._on_registration.append(listener)
+        if self.has_registration:
+            await listener(self.main_service)
 
     async def start(self):
         self._subs.append(await self.nats_client.subscribe("system.info.response", self._handle_request))
