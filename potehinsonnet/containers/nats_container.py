@@ -4,16 +4,14 @@ from typing import AsyncGenerator
 from dependency_injector import containers,providers
 from dependency_injector.providers import Configuration,Singleton,Resource
 from potehinsonnet.monitoring.health import Health
-
-from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.system_models import Service
-from potehinsonnet.steup.command_registrator import CommandRegistrator
+from potehinsonnet.setup.command_registrator import CommandRegistrator
 
 
 @asynccontextmanager
-async def _init_health(client:NatsClient,plugin_name:str,plugin_label:str)->AsyncGenerator[Health, None]:
-    health = Health(client,plugin_name,plugin_label)
+async def _init_health(client:NatsClient,plugin:Service)->AsyncGenerator[Health, None]:
+    health = Health(client=client,plugin=plugin)
     await health.start()
     yield health
     await health.stop()

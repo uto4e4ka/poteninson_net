@@ -8,16 +8,12 @@ from potehinsonnet.net import NatsClient
 
 class Health:
     def __init__(self,
-                 client: NatsClient,plugin_label:str,
-                 plugin:Service,
-                 on_registration: Optional[List[Callable[[Service], Awaitable[None]]]] = None):
+                 client: NatsClient,
+                 plugin:Service):
         self.nats_client = client
         self.plugin = plugin
         self._subs = []
         self.has_registration = False
-        self._on_registration: List[Callable[[Service], Awaitable[None]]] = (
-            on_registration if on_registration is not None else []
-        )
 
     async def send_status(self,status = "ENABLED✅"):
         await self.nats_client.publish("system.info.request",
