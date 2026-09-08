@@ -1,6 +1,6 @@
 
 from enum import Enum
-from typing import Any
+from typing import Any, List
 
 from pydantic import BaseModel, Field
 
@@ -27,14 +27,38 @@ class VoiceChannelUserConnectionType(str, Enum):
 '''
 BASE MODELS
 '''
+class Role(BaseModel):
+    id: int
+    name: str
+
 class Placeholder(BaseModel):
     type: PlaceholderType
     value: str | int
 
+
+from datetime import datetime
+from pydantic import BaseModel, Field
+
+
 class User(BaseModel):
-    name: str
     id: int
+    name: str
+    display_name: str | None = None
+    avatar_url: str | None = None
     is_bot: bool = False
+
+    # Роли и голосовой канал
+    roles: list[Role] = Field(default_factory=list)
+    voice_channel: VoiceChannel | None = None
+
+    # Состояние в голосовом канале
+    is_deaf: bool = False
+    is_mute: bool = False
+    is_streaming: bool = False
+    is_video: bool = False
+
+    # Метаданные
+    joined_at: datetime | None = None
 
 class Channel(BaseModel):
     id: int
