@@ -47,7 +47,7 @@ class Health:
 
     async def start(self):
         self._subs.append(await self.nats_client.subscribe("system.info.response", self._handle_request))
-        self._subs.append(await self.nats_client.subscribe("system.info.registration.init", self._handle_request))
+        self._subs.append(await self.nats_client.subscribe("system.info.registration.init", self._handle_registration))
         await self.send_status()
 
     async def stop(self):
