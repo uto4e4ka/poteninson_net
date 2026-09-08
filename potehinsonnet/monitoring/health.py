@@ -30,7 +30,7 @@ class Health:
             status="ENABLED✅"
         )
         response = await self.nats_client.request(
-            "system.info.registration.init",
+            "system.info.registration.request",
             service_registration.model_dump(mode="json")
         )
         response = ServiceRegistrationResponse.model_validate(response)
