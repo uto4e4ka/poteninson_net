@@ -49,7 +49,7 @@ class User(BaseModel):
 
     # Роли и голосовой канал
     roles: list[Role] = Field(default_factory=list)
-    voice_channel: VoiceChannel | None = None
+    voice_channel: Channel | None = None
 
     # Состояние в голосовом канале
     is_deaf: bool = False
