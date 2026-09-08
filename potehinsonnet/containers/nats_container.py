@@ -3,6 +3,8 @@ from typing import AsyncGenerator
 
 from dependency_injector import containers,providers
 from dependency_injector.providers import Configuration,Singleton,Resource
+
+from potehinsonnet.discord_provider import DiscordProvider
 from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.system_models import Service
@@ -51,3 +53,6 @@ class NatsContainer(containers.DeclarativeContainer):
                                                                              nats_client = nats,
                                                                              plugin = plugin,
                                                                              )
+    discord_provider: Singleton[DiscordProvider] = providers.Singleton(DiscordProvider,
+                                                                       nats_client = nats,
+                                                                       )
