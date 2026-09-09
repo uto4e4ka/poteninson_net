@@ -159,6 +159,7 @@ class Command(BaseModel):
     name: str
     description: str
     service:str
+    group:str=""
     tag:str
     args: list[CommandArgument] = Field(default_factory=list)
 
