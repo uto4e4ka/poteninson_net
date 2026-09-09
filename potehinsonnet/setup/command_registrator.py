@@ -30,9 +30,11 @@ class CommandRegistrator:
         await self.nats_client.publish("discord.command.sync",{})
 
 
-    async def unregister_command(self,command:Command):
-        await self.nats_client.publish("discord.command.remove",command.model_dump(mode='json'))
-        key = f"{command.service}.{command.tag}"
-        sub = self.subs.pop(key,None)
-        if sub:
-            await sub.unsubscribe()
+    async def unregister_command(self,commands:list[tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]]):
+        for command, listener in commands:
+            await self.nats_client.publish("discord.command.remove",command.model_dump(mode='json'))
+            key = f"{command.service}.{command.tag}"
+            sub = self.subs.pop(key,None)
+            if sub:
+                await sub.unsubscribe()
+        await self.nats_client.publish("discord.command.sync", {})
