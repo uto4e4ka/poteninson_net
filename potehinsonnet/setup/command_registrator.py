@@ -34,4 +34,4 @@ class CommandRegistrator:
         key = f"{command.service}.{command.tag}"
         sub = self.subs.pop(key,None)
         if sub:
-            sub.unsubscribe()
+            await sub.unsubscribe()
