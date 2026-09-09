@@ -1,6 +1,8 @@
 import asyncio
 from typing import Callable, Awaitable
 
+from nats.aio.subscription import Subscription
+
 from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.discord_models import Command, ExecutedCommand, ExecutedCommandResponse
 from potehinsonnet.net_models.system_models import Service
@@ -11,7 +13,7 @@ class CommandRegistrator:
         self.plugin_name = plugin.name
         self.nats_client = nats_client
         self.plugin_label = plugin.label
-        self.subs = {}
+        self.subs:dict[str,Subscription] = {}
 
     async def register_command(self,command:Command, listener: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
         if f"{command.service}.{command.tag}" in self.subs.keys():
