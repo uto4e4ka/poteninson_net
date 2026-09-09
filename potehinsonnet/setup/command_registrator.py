@@ -2,7 +2,7 @@ import asyncio
 from typing import Callable, Awaitable
 
 from potehinsonnet.net import NatsClient
-from potehinsonnet.net_models.discord_models import Command
+from potehinsonnet.net_models.discord_models import Command, ExecutedCommand, ExecutedCommandResponse
 from potehinsonnet.net_models.system_models import Service
 
 
@@ -13,10 +13,13 @@ class CommandRegistrator:
         self.plugin_label = plugin.label
         self.subs = {}
 
-    async def register_command(self,command:Command, listener: Callable[[dict], Awaitable[dict]],):
+    async def register_command(self,command:Command, listener: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
         await self.nats_client.publish("discord.command.register",command.model_dump(mode='json'))
         async def on_call(body)->dict:
-            return await listener(body)
+            body = ExecutedCommand.model_validate(body)
+            result = await listener(body)
+            return result.model_dump(mode='json')
+
         self.subs[f"{command.service}.{command.name}"] = await self.nats_client.subscribe(
             f"discord.command.execute.{command.service}.{command.name}",
             on_call)
