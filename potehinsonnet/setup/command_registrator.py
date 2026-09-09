@@ -15,18 +15,19 @@ class CommandRegistrator:
         self.plugin_label = plugin.label
         self.subs:dict[str,Subscription] = {}
 
-    async def register_command(self,command:Command, listener: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
-        if f"{command.service}.{command.tag}" in self.subs.keys():
-            raise KeyError("tag must be unique")
-        await self.nats_client.publish("discord.command.register",command.model_dump(mode='json'))
-        async def on_call(body)->dict:
-            body = ExecutedCommand.model_validate(body)
-            result = await listener(body)
-            return result.model_dump(mode='json')
-
-        self.subs[f"{command.service}.{command.tag}"] = await self.nats_client.subscribe(
+    async def register_command(self,commands:list[tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]]):
+        for command,listener in commands:
+            if f"{command.service}.{command.tag}" in self.subs.keys():
+                raise KeyError("tag must be unique")
+            await self.nats_client.publish("discord.command.register",command.model_dump(mode='json'))
+            async def on_call(body)->dict:
+                body = ExecutedCommand.model_validate(body)
+                result = await listener(body)
+                return result.model_dump(mode='json')
+            self.subs[f"{command.service}.{command.tag}"] = await self.nats_client.subscribe(
             f"discord.command.execute.{command.service}.{command.tag}",
-            on_call)
+                on_call)
+        await self.nats_client.publish("discord.command.sync",{})
 
 
     async def unregister_command(self,command:Command):
