@@ -21,7 +21,7 @@ class CommandRegistrator:
             return result.model_dump(mode='json')
 
         self.subs[f"{command.service}.{command.name}"] = await self.nats_client.subscribe(
-            f"discord.command.execute.{command.service}.{command.name}",
+            f"discord.command.execute.{command.service}.{command.tag}",
             on_call)
 
 
