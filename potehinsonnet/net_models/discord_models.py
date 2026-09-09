@@ -178,8 +178,8 @@ class ExecutedCommand(BaseModel):
 
 class ExecutedCommandResponse(BaseModel):
     message: str
-    ephemeral: bool
-    embeds: list[Embed]
+    ephemeral: bool =True
+    embeds: list[Embed] = Field(default_factory=list)
 '''
 Voice
 '''
