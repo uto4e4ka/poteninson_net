@@ -161,6 +161,7 @@ class Command(BaseModel):
     service:str
     group:str=""
     tag:str
+    permission:str = ""
     args: list[CommandArgument] = Field(default_factory=list)
 
 class ExecutedArgs(BaseModel):
