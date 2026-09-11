@@ -162,6 +162,7 @@ class Command(BaseModel):
     group:str=""
     tag:str
     permission:str = ""
+    ephemeral:bool = True
     args: list[CommandArgument] = Field(default_factory=list)
 
 class ExecutedArgs(BaseModel):
