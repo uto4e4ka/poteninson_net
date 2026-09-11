@@ -219,3 +219,7 @@ class VoiceConnectionRequest(VoiceChannel):
 class VoiceConnectionResponse(VoiceConnectionStatus):
     success: bool = True
     error: str | None = None
+
+class VoicePlayingCallback(BaseModel):
+    success: bool = True
+    message: str | None = None
