@@ -222,4 +222,4 @@ class VoiceConnectionResponse(VoiceConnectionStatus):
 
 class VoicePlayingCallback(BaseModel):
     success: bool = True
-    message: str = ""
+    message: str | None = None
