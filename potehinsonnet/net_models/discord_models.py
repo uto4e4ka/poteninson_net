@@ -179,7 +179,7 @@ class ExecutedCommand(BaseModel):
     args: list[ExecutedArgs] = Field(default_factory=list)
 
 class ExecutedCommandResponse(BaseModel):
-    message: str
+    message: str = ""
     ephemeral: bool =True
     embeds: list[Embed] = Field(default_factory=list)
 '''
