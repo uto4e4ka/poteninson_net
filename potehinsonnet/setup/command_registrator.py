@@ -24,7 +24,7 @@ class CommandRegistrator:
     ):
         async def on_call(body) -> dict:
             body = ExecutedCommand.model_validate(body)
-
+            print("callback")
             result = await listener(body)
 
             return result.model_dump(mode="json")
