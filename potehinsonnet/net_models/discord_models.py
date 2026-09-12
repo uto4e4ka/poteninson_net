@@ -186,6 +186,7 @@ class ExecutedCommandResponse(BaseModel):
     message: str = ""
     ephemeral: bool =True
     embeds: list[Embed] = Field(default_factory=list)
+    is_final: bool = False
 '''
 Voice
 '''

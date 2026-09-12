@@ -55,6 +55,9 @@ class CommandRegistrator:
             {},
         )
 
+    async def reply(self,entity_id:str,response:ExecutedCommandResponse):
+        await self.nats_client.publish(f"discord.command.reply.{entity_id}",response.model_dump(mode="json"))
+
 
     async def unregister_command(self,commands:list[tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]]):
         for command, listener in commands:
