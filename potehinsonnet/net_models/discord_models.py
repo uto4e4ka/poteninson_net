@@ -177,6 +177,9 @@ class ExecutedCommand(BaseModel):
     user: User
     guild: Guild
     channel: Channel
+    entity_id: str =""
+    reply_to:str = ""
+    entity_type: InteractionType = InteractionType.CONNECT
     args: list[ExecutedArgs] = Field(default_factory=list)
 
 class ExecutedCommandResponse(BaseModel):
