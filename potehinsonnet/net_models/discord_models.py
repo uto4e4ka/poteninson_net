@@ -146,6 +146,14 @@ class NatsMessage(BaseModel):
     channel_id: int
     embeds: list[Embed] = Field(default_factory=list)
 
+class DiscordMessageRemove(BaseModel):
+    channel_id:int
+    message_id:int
+
+class DiscordMessageResponse(BaseModel):
+    channel_id: int
+    message_id: int
+
 '''
 Command
 '''
