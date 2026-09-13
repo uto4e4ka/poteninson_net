@@ -144,6 +144,7 @@ class NatsMessage(BaseModel):
     text: str
     placeholders: dict[str, Placeholder] = {}
     channel_id: int
+    embeds: list[Embed] = Field(default_factory=list)
 
 '''
 Command
