@@ -10,7 +10,7 @@ class DiscordProvider:
        response = await self.nats_client.request("discord.message.send", message.model_dump(mode="json"))
        return DiscordMessageResponse.model_validate(response)
     async def remove_message(self,channel_id:int,message_id:int):
-        await self.nats_client.request("discord.message.remove", DiscordMessageRemove(
+        await self.nats_client.publish("discord.message.remove", DiscordMessageRemove(
             channel_id=channel_id,
             message_id=message_id
         ).model_dump(mode="json"))
