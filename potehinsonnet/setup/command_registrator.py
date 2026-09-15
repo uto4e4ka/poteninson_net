@@ -21,15 +21,13 @@ class CommandRegistrator:
             self,
             listener: Callable[
                 [ExecutedCommand],
-                Awaitable[ExecutedCommandResponse]
+                Awaitable[None]
             ],
     ):
-        async def on_call(body) -> dict:
+        async def on_call(body):
             body = ExecutedCommand.model_validate(body)
             print("callback")
-            result = await listener(body)
-
-            return result.model_dump(mode="json")
+            await listener(body)
 
         return on_call
 
