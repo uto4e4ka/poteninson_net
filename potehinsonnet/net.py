@@ -64,6 +64,7 @@ class NatsClient:
         await self._client.close()
 
     async def __aenter__(self):
+        print("enter")
         await self.connect()
 
     async def __aexit__(self):
