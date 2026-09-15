@@ -237,3 +237,12 @@ class VoiceConnectionResponse(VoiceConnectionStatus):
 class VoicePlayingCallback(BaseModel):
     success: bool = True
     message: str | None = None
+
+class SoundAction(Enum):
+    PLAY = 'PLAY'
+    STOP = 'STOP'
+    PAUSE = 'PAUSE'
+
+class SoundControl(BaseModel):
+    guild_id: int
+    action: SoundAction

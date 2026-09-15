@@ -71,3 +71,8 @@ class Health:
                     print(f"Failed to unsubscribe: {e}")
         self._subs.clear()
 
+    async def __aenter__(self):
+        await self.start()
+
+    async def __aexit__(self):
+        await self.stop()

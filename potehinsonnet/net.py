@@ -63,3 +63,8 @@ class NatsClient:
     async def close(self) -> None:
         await self._client.close()
 
+    async def __aenter__(self):
+        await self.connect()
+
+    async def __aexit__(self):
+        await self.close()

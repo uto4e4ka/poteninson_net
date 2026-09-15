@@ -11,19 +11,9 @@ from potehinsonnet.net_models.system_models import Service
 from potehinsonnet.setup.command_registrator import CommandRegistrator
 
 
-@asynccontextmanager
-async def _init_health(client:NatsClient,plugin:Service)->AsyncGenerator[Health, None]:
-    health = Health(client=client,plugin=plugin)
-    await health.start()
-    yield health
-    await health.stop()
 
-@asynccontextmanager
-async def _init_nats(url:str)->AsyncGenerator[NatsClient, None]:
-    nats = NatsClient(url)
-    await nats.connect()
-    yield nats
-    await nats.close()
+
+
 
 class NatsContainer(containers.DeclarativeContainer):
     config: Configuration = providers.Configuration(
@@ -33,7 +23,7 @@ class NatsContainer(containers.DeclarativeContainer):
             },
         }
     )
-    nats: Resource[NatsClient] = providers.Resource(_init_nats,
+    nats: Resource[NatsClient] = providers.Resource(NatsClient,
                                                                 url = config.nats.url)
     plugin: Singleton[Service] = providers.Singleton(Service,
                                                     type= config.plugin.type,
@@ -45,11 +35,11 @@ class NatsContainer(containers.DeclarativeContainer):
                                                     icon = config.plugin.icon,
                                                     site = config.plugin.site
                                                     )
-    health: Resource[Health] = providers.Resource(_init_health,
+    health: Resource[Health] = providers.Resource(Health,
                                                   client = nats,
                                                   plugin = plugin,
                                                   )
-    command_registrator: Singleton[CommandRegistrator] = providers.Singleton(CommandRegistrator,
+    command_registrator: Resource[CommandRegistrator] = providers.Resource(CommandRegistrator,
                                                                              nats_client = nats,
                                                                              plugin = plugin,
                                                                              )

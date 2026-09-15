@@ -7,6 +7,8 @@ from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.discord_models import Command, ExecutedCommand, ExecutedCommandResponse
 from potehinsonnet.net_models.system_models import Service
 
+from types import TracebackType
+
 
 class CommandRegistrator:
     def __init__(self,nats_client:NatsClient,plugin:Service):
@@ -67,3 +69,15 @@ class CommandRegistrator:
             if sub:
                 await sub.unsubscribe()
         await self.nats_client.publish("discord.command.sync", {})
+
+    async def flush(self):
+        for key,sub in self.subs:
+            await sub.unsubscribe()
+            self.subs.pop(key)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self):
+        await self.flush()
+
