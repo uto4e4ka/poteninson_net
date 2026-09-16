@@ -30,16 +30,16 @@ class CommandRegistrator:
             ],
         ] = {}
 
-
-    def command(self, command: Command):
+    @staticmethod
+    def command(registrator:CommandRegistrator,command: Command):
 
         def decorator(func:Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
-            self.add_command(command,func)
+            registrator.add_command(command,func)
             @wraps(func)
             async def wrapper(executed_command: ExecutedCommand) -> ExecutedCommandResponse | None:
                 response =  await func(executed_command)
                 if response:
-                    await self.reply(executed_command.entity_id,response)
+                    await registrator.reply(executed_command.entity_id,response)
                 return response
             return wrapper
 
