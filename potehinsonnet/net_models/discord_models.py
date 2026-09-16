@@ -242,6 +242,7 @@ class SoundAction(Enum):
     PLAY = 'PLAY'
     STOP = 'STOP'
     PAUSE = 'PAUSE'
+    RESUME = "RESUME"
 
 class SoundControl(BaseModel):
     guild_id: int
