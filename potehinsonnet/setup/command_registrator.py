@@ -1,6 +1,7 @@
 import asyncio
 from functools import wraps
 from typing import Callable, Awaitable
+from urllib import response
 from warnings import deprecated
 
 from nats.aio.subscription import Subscription
@@ -36,7 +37,10 @@ class CommandRegistrator:
             self.add_command(command,func)
             @wraps(func)
             async def wrapper(executed_command: ExecutedCommand) -> ExecutedCommandResponse | None:
-                return await func(executed_command)
+                response =  await func(executed_command)
+                if response:
+                    await self.reply(executed_command.entity_id,response)
+                return response
             return wrapper
 
         return decorator
