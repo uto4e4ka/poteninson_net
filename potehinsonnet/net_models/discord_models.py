@@ -246,3 +246,4 @@ class SoundAction(Enum):
 class SoundControl(BaseModel):
     guild_id: int
     action: SoundAction
+
