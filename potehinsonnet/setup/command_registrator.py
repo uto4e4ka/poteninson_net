@@ -1,5 +1,7 @@
 import asyncio
+from functools import wraps
 from typing import Callable, Awaitable
+from warnings import deprecated
 
 from nats.aio.subscription import Subscription
 
@@ -16,6 +18,29 @@ class CommandRegistrator:
         self.nats_client = nats_client
         self.plugin_label = plugin.label
         self.subs:dict[str,Subscription] = {}
+        self._commands: dict[
+            str,
+            tuple[
+                Command,
+                Callable[
+                    [ExecutedCommand],
+                    Awaitable[ExecutedCommandResponse | None],
+                ],
+            ],
+        ] = {}
+
+
+    def command(self, command: Command):
+
+        def decorator(func:Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
+            self.add_command(command,func)
+            @wraps(func)
+            async def wrapper(executed_command: ExecutedCommand) -> ExecutedCommandResponse | None:
+                return await func(executed_command)
+            return wrapper
+
+        return decorator
+
 
     def _create_listener(
             self,
@@ -31,6 +56,37 @@ class CommandRegistrator:
 
         return on_call
 
+
+    async def add_command(self,command:Command,listener:Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
+        key = f"{command.service}.{command.tag}"
+        if key in self._commands:
+            raise KeyError("tag must be unique")
+        self._commands[key] = (command, listener)
+
+
+    async def push_commands(self,commands:dict[Command,Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]):
+        for command, listener in commands:
+            key = f"{command.service}.{command.tag}"
+            if key in self.subs:
+                raise KeyError("tag must be unique")
+            await self.nats_client.publish(
+                "discord.command.register",
+                command.model_dump(mode="json"),
+            )
+            on_call = self._create_listener(listener)
+            self.subs[command] = await self.nats_client.subscribe(
+                f"discord.command.execute.{command.service}.{command.tag}",
+                on_call
+            )
+
+
+    async def sync_commands(self):
+        await self.nats_client.publish(
+            "discord.command.sync",
+            {},
+        )
+
+    @deprecated("Используйте push_commands()")
     async def register_command(self, commands):
         for command, listener in commands:
             key = f"{command.service}.{command.tag}"
@@ -72,6 +128,7 @@ class CommandRegistrator:
         for key,sub in self.subs:
             await sub.unsubscribe()
             self.subs.pop(key)
+        self._commands.clear()
 
     async def __aenter__(self):
         return self
