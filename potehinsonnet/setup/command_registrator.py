@@ -32,6 +32,8 @@ class CommandRegistrator:
             # Проверяем, есть ли у метода метка от декоратора @command
             if hasattr(method, "__nats_command__"):
                 cmd: Command = getattr(method, "__nats_command__")
+                if not cmd.service:
+                    cmd.service = self.plugin.name
                 await self._subscribe_method(cmd, method)
 
         # Отправляем событие синхронизации в NATS
