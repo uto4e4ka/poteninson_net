@@ -54,8 +54,8 @@ class CommandRegistrator:
             cmd.model_dump(mode="json"),
         )
 
-        async def on_call(msg):
-            executed_cmd = ExecutedCommand.model_validate_json(msg)
+        async def on_call(msg:dict):
+            executed_cmd = ExecutedCommand.model_validate(msg)
 
             response = await method(executed_cmd)
 
