@@ -25,6 +25,15 @@ async def _init_nats(url:str)->AsyncGenerator[NatsClient, None]:
     yield nats
     await nats.close()
 
+@asynccontextmanager
+async def _init_command_registrator(
+    client: NatsClient,
+    plugin: Service
+) -> AsyncGenerator[CommandRegistrator, None]:
+    registrator = CommandRegistrator(nats_client=client, plugin=plugin)
+    yield registrator
+    await registrator.close()
+
 class NatsContainer(containers.DeclarativeContainer):
     config: Configuration = providers.Configuration(
         default={
@@ -49,10 +58,11 @@ class NatsContainer(containers.DeclarativeContainer):
                                                   client = nats,
                                                   plugin = plugin,
                                                   )
-    command_registrator: Resource[CommandRegistrator] = providers.Resource(CommandRegistrator,
-                                                                             nats_client = nats,
-                                                                             plugin = plugin,
-                                                                             )
+    command_registrator: Resource[CommandRegistrator] = providers.Resource(
+        _init_command_registrator,
+        client=nats,
+        plugin=plugin,
+    )
     discord_provider: Singleton[DiscordProvider] = providers.Singleton(DiscordProvider,
                                                                        nats_client = nats,
                                                                        )

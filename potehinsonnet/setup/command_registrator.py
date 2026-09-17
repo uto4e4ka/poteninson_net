@@ -12,53 +12,65 @@ from potehinsonnet.net_models.system_models import Service
 
 from types import TracebackType
 
+def command(cmd: Command):
+    def decorator(func):
+        func.__nats_command__ = cmd
+        return func
+    return decorator
 
 class CommandRegistrator:
-    def __init__(self,nats_client:NatsClient,plugin:Service):
-        self.plugin_name = plugin.name
+    def __init__(self, nats_client: NatsClient, plugin: Service):
         self.nats_client = nats_client
-        self.plugin_label = plugin.label
-        self.subs:dict[str,Subscription] = {}
-        self._commands: dict[
-            str,
-            tuple[
-                Command,
-                Callable[
-                    [ExecutedCommand],
-                    Awaitable[ExecutedCommandResponse | None],
-                ],
-            ],
-        ] = {}
+        self.plugin = plugin
+        self.subs: dict[str, Subscription] = {}
 
+    async def register_instance_commands(self, instance: object):
+        """Сканирует объект (плагин) и подписывает все помеченные @command методы."""
+        for attr_name in dir(instance):
+            method = getattr(instance, attr_name)
 
-    def command(self, command: Command):
+            # Проверяем, есть ли у метода метка от декоратора @command
+            if hasattr(method, "__nats_command__"):
+                cmd: Command = getattr(method, "__nats_command__")
+                await self._subscribe_method(cmd, method)
 
-        def decorator(func:Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
-            self.add_command(command,func)
-            @wraps(func)
-            async def wrapper(executed_command: ExecutedCommand) -> ExecutedCommandResponse | None:
-                response =  await func(executed_command)
-                if response:
-                    await self.reply(executed_command.entity_id,response)
-                return response
-            return wrapper
+        # Отправляем событие синхронизации в NATS
+        await self.nats_client.publish("discord.command.sync", {})
 
-        return decorator
-
-
-    def _create_listener(
+    async def _subscribe_method(
             self,
-            listener: Callable[
-                [ExecutedCommand],
-                Awaitable[None]
-            ],
+            cmd: Command,
+            method: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse | None]]
     ):
-        async def on_call(body):
-            body = ExecutedCommand.model_validate(body)
-            print("callback")
-            await listener(body)
+        key = f"{cmd.service}.{cmd.tag}"
+        if key in self.subs:
+            raise KeyError(f"Command tag '{key}' must be unique")
 
-        return on_call
+        # Объявляем событие регистрации
+        await self.nats_client.publish(
+            "discord.command.register",
+            cmd.model_dump(mode="json"),
+        )
+
+        async def on_call(msg):
+            executed_cmd = ExecutedCommand.model_validate_json(msg)
+
+            response = await method(executed_cmd)
+
+            if response:
+                await self.nats_client.publish(
+                    f"discord.command.reply.{executed_cmd.entity_id}",
+                    response.model_dump(mode="json"),
+                )
+
+        topic = f"discord.command.execute.{cmd.service}.{cmd.tag}"
+        self.subs[key] = await self.nats_client.subscribe(topic, on_call)
+
+    async def close(self):
+        """Отписываемся при остановке контейнера."""
+        for sub in self.subs.values():
+            await sub.unsubscribe()
+        self.subs.clear()
 
 
     async def add_command(self,command:Command,listener:Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]):
