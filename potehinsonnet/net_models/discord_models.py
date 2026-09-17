@@ -167,7 +167,7 @@ class CommandArgument(BaseModel):
 class Command(BaseModel):
     name: str
     description: str
-    service:str
+    service:str=""
     group:str=""
     tag:str
     permission:str = ""
