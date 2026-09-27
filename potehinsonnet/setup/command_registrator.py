@@ -129,8 +129,14 @@ class CommandRegistrator:
             {},
         )
 
-    async def reply(self,entity_id:str,response:ExecutedCommandResponse):
-        await self.nats_client.publish(f"discord.command.reply.{entity_id}",response.model_dump(mode="json"))
+    async def reply(self,entity_id:str,response:ExecutedCommandResponse|str):
+        if isinstance(response,ExecutedCommandResponse):
+            await self.nats_client.publish(f"discord.command.reply.{entity_id}",response.model_dump(mode="json"))
+        else:
+            await self.nats_client.publish(f"discord.command.reply.{entity_id}",
+                                           ExecutedCommandResponse(
+                                               message=response,
+                                           ).model_dump(mode="json"))
 
 
     async def unregister_command(self,commands:list[tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]]):
