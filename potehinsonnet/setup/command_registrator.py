@@ -1,7 +1,5 @@
-import asyncio
-from functools import wraps
+
 from typing import Callable, Awaitable
-from urllib import response
 from warnings import deprecated
 
 from nats.aio.subscription import Subscription
@@ -57,12 +55,17 @@ class CommandRegistrator:
         async def on_call(msg:dict):
             executed_cmd = ExecutedCommand.model_validate(msg)
 
-            response = await method(executed_cmd)
-
-            if response:
+            try:
+                response = await method(executed_cmd)
+                if response:
+                    await self.nats_client.publish(
+                        f"discord.command.reply.{executed_cmd.entity_id}",
+                        response.model_dump(mode="json"),
+                    )
+            except Exception as e:
                 await self.nats_client.publish(
                     f"discord.command.reply.{executed_cmd.entity_id}",
-                    response.model_dump(mode="json"),
+                    ExecutedCommandResponse(message=f"{e}").model_dump(mode="json"),
                 )
 
         topic = f"discord.command.execute.{cmd.service}.{cmd.tag}"
