@@ -267,6 +267,22 @@ class Container(BaseModel):
         | ActionRow
     ] = Field(default_factory=list)
 
+class ExecutedComponent(BaseModel):
+    id:str
+    user:User
+    guild:Guild
+    channel:Channel
+    topic_id:str
+
+class ExecutedCommandResponse(BaseModel):
+    message:str = ""
+    embeds: list[Embed] = Field(
+        default_factory=list
+    )
+    containers: list[Container] = Field(
+        default_factory=list
+    )
+
 
 # ============================================================
 # MESSAGES
