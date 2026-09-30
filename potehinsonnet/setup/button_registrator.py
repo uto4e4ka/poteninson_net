@@ -7,12 +7,24 @@ from potehinsonnet.net_models.discord_models import ExecutedComponentResponse, E
 
 from types import TracebackType
 
+from typing import Awaitable, Callable, TypeVar
+
+T = TypeVar("T")
+
+ButtonMethod = Callable[
+    [T, ExecutedComponent],
+    Awaitable[ExecutedComponentResponse | None],
+]
 
 def button(custom_id: str):
-    def decorator(func:Callable[[ExecutedComponent], Awaitable[ExecutedComponentResponse|None]]):
+    def decorator(
+        func: ButtonMethod[T],
+    ) -> ButtonMethod[T]:
         func.__custom_id__ = custom_id
         return func
+
     return decorator
+
 
 class ButtonRegistrator:
     def __init__(self, nats_client: NatsClient):
