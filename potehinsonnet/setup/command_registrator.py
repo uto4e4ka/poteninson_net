@@ -63,6 +63,7 @@ class CommandRegistrator:
                         response.model_dump(mode="json"),
                     )
             except Exception as e:
+                raise e
                 await self.nats_client.publish(
                     f"discord.command.reply.{executed_cmd.entity_id}",
                     ExecutedCommandResponse(message=f"{e}").model_dump(mode="json"),
