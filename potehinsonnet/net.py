@@ -17,10 +17,15 @@ class NatsClient:
     async def connect(self) -> None:
         await self._client.connect(self.url)
 
-
-    async def publish(self, subject: str, data: dict) -> None:
-        payload = json.dumps(data,
-                             default=lambda obj: obj.isoformat()).encode()
+    async def publish(
+            self,
+            subject: str,
+            data: dict | None,
+    ) -> None:
+        payload = json.dumps(
+            data,
+            default=lambda obj: obj.isoformat(),
+        ).encode()
 
         await self._client.publish(
             subject,

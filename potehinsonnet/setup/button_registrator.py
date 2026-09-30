@@ -51,11 +51,10 @@ class ButtonRegistrator:
             result = await method(executed)
         except Exception as e:
             result = ExecutedComponentResponse(message=f"{e}")
-        if result:
-            await self.nats_client.publish(
-                f"discord.component.{executed.task_id}.reply",
-                result.model_dump(mode="json"),
-            )
+        await self.nats_client.publish(
+            f"discord.component.{executed.task_id}.reply",
+            result.model_dump(mode="json") if result else None,
+        )
 
     async def subscribe(self):
         self.sub = await self.nats_client.subscribe("discord.component.execute",self.on_click)
