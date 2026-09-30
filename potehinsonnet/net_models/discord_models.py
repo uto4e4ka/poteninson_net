@@ -282,6 +282,7 @@ class ExecutedComponentResponse(BaseModel):
     containers: list[Container] = Field(
         default_factory=list
     )
+    ephemeral = False
 
 
 # ============================================================
