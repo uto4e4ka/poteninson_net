@@ -274,7 +274,7 @@ class ExecutedComponent(BaseModel):
     channel:Channel
     task_id:str
 
-class ExecutedCommandResponse(BaseModel):
+class ExecutedComponentResponse(BaseModel):
     message:str = ""
     embeds: list[Embed] = Field(
         default_factory=list
