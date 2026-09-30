@@ -130,6 +130,13 @@ class Embed(BaseModel):
     fields: List[EmbedField] = Field(default_factory=list)  # До 25 колонок/полей
 
 
+class ComponentButton(BaseModel):
+    label: str
+    custom_id: Optional[str] = None
+    style: str = "primary"  # primary, secondary, success, danger, link
+    url: Optional[str] = None
+    emoji: Optional[str] = None
+    disabled: bool = False
 '''
 Messages
 '''
@@ -195,6 +202,7 @@ class ExecutedCommandResponse(BaseModel):
     message: str = ""
     ephemeral: bool =True
     embeds: list[Embed] = Field(default_factory=list)
+    buttons: list[ComponentButton] = Field(default_factory=list)
     is_final: bool = False
 '''
 Voice
