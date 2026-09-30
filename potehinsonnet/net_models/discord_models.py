@@ -211,16 +211,12 @@ class Separator(BaseModel):
 
 
 class Section(BaseModel):
-    """
-    Components V2 Section.
-
-    Внутри можно разместить текст, а справа accessory,
-    например кнопку.
-    """
-
     content: str
-    accessory: ComponentButton | None = None
+    accessory: ComponentButton | ComponentThumbnail | None = None
 
+class ComponentThumbnail(BaseModel):
+    url: str
+    description: str | None = None
 
 class MediaItem(BaseModel):
     """
