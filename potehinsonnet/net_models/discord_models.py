@@ -187,7 +187,7 @@ class ComponentButton(BaseModel):
 
     disabled: bool = False
 
-    context:dict = {}
+    context: dict | None = None
 
 
 class TextDisplay(BaseModel):
@@ -275,7 +275,7 @@ class ExecutedComponent(BaseModel):
     guild:Guild
     channel:Channel
     task_id:str
-    context: dict = {}
+    context: dict | None = None
 
 class ExecutedComponentResponse(BaseModel):
     message:str = ""
