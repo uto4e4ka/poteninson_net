@@ -8,6 +8,7 @@ from potehinsonnet.discord_provider import DiscordProvider
 from potehinsonnet.monitoring.health import Health
 from potehinsonnet.net import NatsClient
 from potehinsonnet.net_models.system_models import Service
+from potehinsonnet.setup.button_registrator import ButtonRegistrator
 from potehinsonnet.setup.command_registrator import CommandRegistrator
 
 
@@ -33,6 +34,18 @@ async def _init_command_registrator(
     registrator = CommandRegistrator(nats_client=client, plugin=plugin)
     yield registrator
     await registrator.close()
+
+@asynccontextmanager
+async def _init_button_registrator(
+    client: NatsClient,
+) -> AsyncGenerator[ButtonRegistrator, None]:
+    registrator = ButtonRegistrator(nats_client=client)
+
+    await registrator.subscribe()
+
+    yield registrator
+
+    await registrator.unsubscribe()
 
 class NatsContainer(containers.DeclarativeContainer):
     config: Configuration = providers.Configuration(
@@ -62,6 +75,10 @@ class NatsContainer(containers.DeclarativeContainer):
         _init_command_registrator,
         client=nats,
         plugin=plugin,
+    )
+    button_registrator: Resource[ButtonRegistrator] = providers.Resource(
+        _init_button_registrator,
+        client=nats,
     )
     discord_provider: Singleton[DiscordProvider] = providers.Singleton(DiscordProvider,
                                                                        nats_client = nats,
