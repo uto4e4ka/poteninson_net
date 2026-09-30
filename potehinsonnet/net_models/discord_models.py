@@ -272,7 +272,7 @@ class ExecutedComponent(BaseModel):
     user:User
     guild:Guild
     channel:Channel
-    topic_id:str
+    task_id:str
 
 class ExecutedCommandResponse(BaseModel):
     message:str = ""
