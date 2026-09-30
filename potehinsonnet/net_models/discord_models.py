@@ -211,7 +211,8 @@ class Separator(BaseModel):
 
 
 class Section(BaseModel):
-    content: str
+    content: Optional[str] = None
+    components: Optional[List[TextDisplay]] = None
     accessory: ComponentButton | ComponentThumbnail | None = None
 
 class ComponentThumbnail(BaseModel):
