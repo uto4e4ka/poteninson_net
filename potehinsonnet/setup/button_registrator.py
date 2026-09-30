@@ -47,7 +47,10 @@ class ButtonRegistrator:
         method = self.components.get(executed.id)
         if method is None:
             return
-        result = await method(executed)
+        try:
+            result = await method(executed)
+        except Exception as e:
+            result = ExecutedComponentResponse(message=f"{e}")
         if result:
             await self.nats_client.publish(
                 f"discord.component.{executed.task_id}.reply",
