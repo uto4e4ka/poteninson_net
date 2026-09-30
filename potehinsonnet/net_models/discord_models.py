@@ -282,7 +282,8 @@ class ExecutedComponentResponse(BaseModel):
     containers: list[Container] = Field(
         default_factory=list
     )
-    ephemeral = False
+    ephemeral:bool = False
+    is_finish:bool = True
 
 
 # ============================================================
