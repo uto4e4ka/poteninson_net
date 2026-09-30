@@ -275,6 +275,7 @@ class ExecutedComponent(BaseModel):
     guild:Guild
     channel:Channel
     task_id:str
+    context: dict = {}
 
 class ExecutedComponentResponse(BaseModel):
     message:str = ""
