@@ -50,7 +50,7 @@ class ButtonRegistrator:
         try:
             result = await method(executed)
         except Exception as e:
-            result = ExecutedComponentResponse(message=f"{e}")
+            result = ExecutedComponentResponse(message=f"{e}",ephemeral=True)
         await self.nats_client.publish(
             f"discord.component.{executed.task_id}.reply",
             result.model_dump(mode="json") if result else None,
