@@ -187,6 +187,8 @@ class ComponentButton(BaseModel):
 
     disabled: bool = False
 
+    context:dict = {}
+
 
 class TextDisplay(BaseModel):
     """
