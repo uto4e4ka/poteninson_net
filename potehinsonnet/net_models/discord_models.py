@@ -317,6 +317,9 @@ class NatsMessage(BaseModel):
         default_factory=list
     )
 
+class DiscordMessageEdit(BaseModel):
+    message_id: int
+    message: NatsMessage
 
 class DiscordMessageRemove(BaseModel):
     channel_id: int
