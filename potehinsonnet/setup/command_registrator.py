@@ -44,7 +44,7 @@ class CommandRegistrator:
     ):
         key = f"{cmd.service}.{cmd.tag}"
         if key in self.subs:
-            raise KeyError(f"Command tag '{key}' must be unique")
+            await self.subs[key].unsubscribe()
 
         # Объявляем событие регистрации
         await self.nats_client.publish(
