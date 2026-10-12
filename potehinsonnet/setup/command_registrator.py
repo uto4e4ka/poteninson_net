@@ -84,7 +84,7 @@ class CommandRegistrator:
         return on_call
 
     async def close(self):
-        """Отписываемся при остановке контейнера."""
+        """Отписываемся при остановке плагина."""
         for sub in self.subs.values():
             await sub.unsubscribe()
         self.subs.clear()
