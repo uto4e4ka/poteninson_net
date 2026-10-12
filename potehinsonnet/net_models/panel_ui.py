@@ -17,6 +17,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from potehinsonnet.net_models.discord_models import Attachment
+
 # ============================================================
 # ТЕМЫ
 # ============================================================
@@ -61,6 +63,10 @@ class KeyValue(BaseModel):
     type: Literal["key_value"] = "key_value"
     items: dict[str, str] = Field(default_factory=dict)
 
+
+# Картинки: https://… или маленькая картинка прямо в адресе — data:image/jpeg;base64,…
+# (так плагин показывает свои файлы: браузер не может открыть файл с диска плагина).
+# Страница целиком едет через NATS (до ~1 МБ), поэтому в data: — только уменьшенные копии.
 
 class Image(BaseModel):
     type: Literal["image"] = "image"
@@ -181,8 +187,18 @@ class ChannelPicker(BaseModel):
     kind: Literal["text", "voice", "any"] = "text"
 
 
+class FileField(BaseModel):
+    """Загрузка файла. Плагин получает Attachment (или None, если файл не выбран)."""
+
+    type: Literal["file"] = "file"
+    name: str
+    label: str
+    accept: str = ""          # например "image/*"
+    required: bool = False
+
+
 FormField = Annotated[
-    TextField | NumberField | Select | Toggle | MemberPicker | RolePicker | ChannelPicker,
+    TextField | NumberField | Select | Toggle | MemberPicker | RolePicker | ChannelPicker | FileField,
     Field(discriminator="type"),
 ]
 
@@ -190,7 +206,8 @@ FormField = Annotated[
 class Form(BaseModel):
     """Форма: при отправке плагин получает значения полей.
 
-    Числа — float, переключатели — bool, выбор участника/роли/канала — int (или None).
+    Числа — float, переключатели — bool, выбор участника/роли/канала — int (или None),
+    файл — Attachment (или None). Файл едет через NATS: до 700 КБ.
     """
 
     type: Literal["form"] = "form"
@@ -232,3 +249,5 @@ class ActionRequest(PanelContext):
     page: str
     action: str
     values: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    # Загруженные файлы (FileField); плагин получает их в values под тем же именем
+    files: dict[str, Attachment] = Field(default_factory=dict)

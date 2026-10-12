@@ -231,7 +231,8 @@ class Plugin:
             return PanelResult(ok=False, message=f"Действие {request.action} не найдено").model_dump(mode="json")
 
         try:
-            result = await handler(PanelContext(guild_id=request.guild_id, user=request.user), request.values)
+            values = {**request.values, **request.files}
+            result = await handler(PanelContext(guild_id=request.guild_id, user=request.user), values)
         except Exception as e:
             result = PanelResult(ok=False, message=str(e) or type(e).__name__)
 
