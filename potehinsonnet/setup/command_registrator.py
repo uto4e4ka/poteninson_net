@@ -21,9 +21,13 @@ class CommandRegistrator:
         self.nats_client = nats_client
         self.plugin = plugin
         self.subs: dict[str, Subscription] = {}
+        self._commands: dict[str, tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]] = {}
 
-    async def register_instance_commands(self, instance: object):
-        """Сканирует объект (плагин) и подписывает все помеченные @command методы."""
+    async def register_instance_commands(self, instance: object, sync: bool = True):
+        """Сканирует объект (плагин) и подписывает все помеченные @command методы.
+
+        sync=False — не просить бота синхронизировать команды (если регистрируете несколько объектов подряд).
+        """
         for attr_name in dir(instance):
             method = getattr(instance, attr_name)
 
@@ -35,7 +39,8 @@ class CommandRegistrator:
                 await self._subscribe_method(cmd, method)
 
         # Отправляем событие синхронизации в NATS
-        await self.nats_client.publish("discord.command.sync", {})
+        if sync:
+            await self.sync_commands()
 
     async def _subscribe_method(
             self,
@@ -52,7 +57,14 @@ class CommandRegistrator:
             cmd.model_dump(mode="json"),
         )
 
-        async def on_call(msg:dict):
+        topic = f"discord.command.execute.{cmd.service}.{cmd.tag}"
+        self.subs[key] = await self.nats_client.subscribe(topic, self._create_listener(method))
+
+    def _create_listener(
+            self,
+            method: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse | None]]
+    ) -> Callable[[dict], Awaitable[None]]:
+        async def on_call(msg: dict):
             executed_cmd = ExecutedCommand.model_validate(msg)
 
             try:
@@ -63,13 +75,13 @@ class CommandRegistrator:
                         response.model_dump(mode="json"),
                     )
             except Exception as e:
+                # Ошибка — последний ответ, иначе бот ждёт до таймаута
                 await self.nats_client.publish(
                     f"discord.command.reply.{executed_cmd.entity_id}",
-                    ExecutedCommandResponse(message=f"{e}").model_dump(mode="json"),
+                    ExecutedCommandResponse(message=f"{e}", is_final=True).model_dump(mode="json"),
                 )
 
-        topic = f"discord.command.execute.{cmd.service}.{cmd.tag}"
-        self.subs[key] = await self.nats_client.subscribe(topic, on_call)
+        return on_call
 
     async def close(self):
         """Отписываемся при остановке контейнера."""
@@ -85,7 +97,7 @@ class CommandRegistrator:
         self._commands[key] = (command, listener)
 
 
-    async def push_commands(self,commands:dict[Command,Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]):
+    async def push_commands(self,commands:list[tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]]):
         for command, listener in commands:
             key = f"{command.service}.{command.tag}"
             if key in self.subs:
@@ -95,7 +107,7 @@ class CommandRegistrator:
                 command.model_dump(mode="json"),
             )
             on_call = self._create_listener(listener)
-            self.subs[command] = await self.nats_client.subscribe(
+            self.subs[key] = await self.nats_client.subscribe(
                 f"discord.command.execute.{command.service}.{command.tag}",
                 on_call
             )
@@ -152,14 +164,14 @@ class CommandRegistrator:
         await self.nats_client.publish("discord.command.sync", {})
 
     async def flush(self):
-        for key,sub in self.subs:
+        for sub in self.subs.values():
             await sub.unsubscribe()
-            self.subs.pop(key)
+        self.subs.clear()
         self._commands.clear()
 
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self):
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None):
         await self.flush()
 

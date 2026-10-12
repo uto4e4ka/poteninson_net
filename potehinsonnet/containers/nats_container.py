@@ -1,3 +1,4 @@
+import warnings
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -46,6 +47,13 @@ async def _init_button_registrator(
     yield registrator
 
     await registrator.unsubscribe()
+
+warnings.warn(
+    "NatsContainer устарел и будет удалён в potehinsonnet 0.3 — используйте potehinsonnet.Plugin",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class NatsContainer(containers.DeclarativeContainer):
     config: Configuration = providers.Configuration(

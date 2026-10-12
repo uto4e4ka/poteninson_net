@@ -1,11 +1,11 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ServiceHealthMessage(BaseModel):
     type: str = "plugin"
     name: str
     status: str
-    time: datetime = datetime.now()
+    time: datetime = Field(default_factory=datetime.now)
 
 class Service(BaseModel):
     type: str = "plugin"
@@ -18,9 +18,9 @@ class Service(BaseModel):
     site:str =""
 
 class ServiceRegistrationRequest(Service):
-    time: datetime = datetime.now()
+    time: datetime = Field(default_factory=datetime.now)
     status: str
 
 class ServiceRegistrationResponse(Service):
-    time: datetime = datetime.now()
+    time: datetime = Field(default_factory=datetime.now)
     success: bool = True

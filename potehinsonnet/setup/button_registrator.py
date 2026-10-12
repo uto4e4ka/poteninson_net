@@ -65,6 +65,7 @@ class ButtonRegistrator:
 
     async def __aenter__(self):
         await self.subscribe()
+        return self
 
     async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None):
         await self.unsubscribe()

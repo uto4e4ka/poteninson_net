@@ -1,12 +1,29 @@
 # src/nats_client/client.py
 
 import json
+import logging
 from collections.abc import Awaitable, Callable
 
 import nats
 from nats.aio.client import Client
 from nats.aio.msg import Msg
 from nats.aio.subscription import Subscription
+
+logger = logging.getLogger(__name__)
+
+# Ключ, которым обработчик сообщает об ошибке в ответе на request
+ERROR_KEY = "__error__"
+
+
+class NatsRequestError(Exception):
+    """Обработчик на другой стороне упал при выполнении запроса."""
+
+
+def _dumps(data: dict | None) -> bytes:
+    return json.dumps(
+        data,
+        default=lambda obj: obj.isoformat(),
+    ).encode()
 
 
 class NatsClient:
@@ -22,14 +39,9 @@ class NatsClient:
             subject: str,
             data: dict | None,
     ) -> None:
-        payload = json.dumps(
-            data,
-            default=lambda obj: obj.isoformat(),
-        ).encode()
-
         await self._client.publish(
             subject,
-            payload,
+            _dumps(data),
         )
 
     async def subscribe(
@@ -38,14 +50,18 @@ class NatsClient:
             handler: Callable[[dict], Awaitable[dict | None]],
     ) -> Subscription:  # 1. Меняем возвращаемый тип с None на Subscription
         async def callback(message: Msg) -> None:
-            data = json.loads(message.data)
-
-            response = await handler(data)
+            try:
+                data = json.loads(message.data)
+                response = await handler(data)
+            except Exception as e:
+                logger.exception(f"Ошибка обработчика NATS [{subject}]: {e}")
+                # Отвечаем ошибкой сразу, чтобы запрашивающий не ждал таймаута
+                if message.reply:
+                    await message.respond(_dumps({ERROR_KEY: f"{type(e).__name__}: {e}"}))
+                return
 
             if response is not None and message.reply:
-                await message.respond(
-                    json.dumps(response).encode()
-                )
+                await message.respond(_dumps(response))
         return await self._client.subscribe(
             subject,
             cb=callback,
@@ -59,18 +75,21 @@ class NatsClient:
     ) -> dict:
         message = await self._client.request(
             subject,
-            json.dumps(payload).encode(),
+            _dumps(payload),
             timeout=timeout,
         )
 
-        return json.loads(message.data)
+        response = json.loads(message.data)
+        if isinstance(response, dict) and ERROR_KEY in response:
+            raise NatsRequestError(response[ERROR_KEY])
+        return response
 
     async def close(self) -> None:
         await self._client.close()
 
     async def __aenter__(self):
-        print("enter")
         await self.connect()
+        return self
 
-    async def __aexit__(self):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()

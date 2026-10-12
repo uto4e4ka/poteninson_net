@@ -43,7 +43,7 @@ class Health:
 
     async def _notify_all(self):
         for callback in self._on_registration:
-            await callback(self.plugin)
+            await callback(self.main_service)
 
 
 
@@ -73,6 +73,7 @@ class Health:
 
     async def __aenter__(self):
         await self.start()
+        return self
 
-    async def __aexit__(self):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.stop()
