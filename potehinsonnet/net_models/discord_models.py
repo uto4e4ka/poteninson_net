@@ -1,5 +1,7 @@
+import base64
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field
@@ -221,9 +223,51 @@ class ComponentThumbnail(BaseModel):
     url: str
     description: str | None = None
 
+# Файл едет через NATS внутри сообщения, а NATS по умолчанию пропускает до 1 МБ;
+# base64 добавляет к размеру треть — с запасом под остальное сообщение
+MAX_ATTACHMENTS_SIZE = 700 * 1024
+
+
+class Attachment(BaseModel):
+    """
+    Файл, который бот приложит к сообщению.
+
+    В контейнере на него ссылаются по имени:
+        MediaItem(url="attachment://poteha.jpg")
+        ComponentThumbnail(url="attachment://poteha.jpg")
+
+    Имя файла лучше латиницей без пробелов: так оно точно совпадёт со ссылкой.
+    Спрятать картинку под спойлер можно спойлером контейнера: Container(spoiler=True).
+    """
+
+    filename: str
+    data: str                       # содержимое в base64
+    description: str | None = None
+
+    @classmethod
+    def from_bytes(cls, content: bytes, filename: str, description: str | None = None) -> "Attachment":
+        if len(content) > MAX_ATTACHMENTS_SIZE:
+            raise ValueError(
+                f"Файл {filename} весит {len(content) // 1024} КБ — через NATS можно отправить "
+                f"до {MAX_ATTACHMENTS_SIZE // 1024} КБ"
+            )
+        return cls(filename=filename, data=base64.b64encode(content).decode("ascii"), description=description)
+
+    @classmethod
+    def from_path(cls, path: str | Path, filename: str | None = None,
+                  description: str | None = None) -> "Attachment":
+        path = Path(path)
+        return cls.from_bytes(path.read_bytes(), filename or path.name, description)
+
+    def content(self) -> bytes:
+        return base64.b64decode(self.data)
+
+
 class MediaItem(BaseModel):
     """
     Один элемент Media Gallery.
+
+    url — ссылка https://… или "attachment://имя" для файла из files сообщения.
     """
 
     url: str
@@ -285,6 +329,7 @@ class ExecutedComponentResponse(BaseModel):
     containers: list[Container] = Field(
         default_factory=list
     )
+    files: list[Attachment] = Field(default_factory=list)
     ephemeral:bool = False
     is_finish:bool = True
 
@@ -316,6 +361,9 @@ class NatsMessage(BaseModel):
     containers: list[Container] = Field(
         default_factory=list
     )
+
+    # Файлы для сообщения; в контейнере — url="attachment://имя"
+    files: list[Attachment] = Field(default_factory=list)
 
 class DiscordMessageEdit(BaseModel):
     message_id: int
@@ -418,6 +466,9 @@ class ExecutedCommandResponse(BaseModel):
     containers: list[Container] = Field(
         default_factory=list
     )
+
+    # Файлы для ответа; в контейнере — url="attachment://имя"
+    files: list[Attachment] = Field(default_factory=list)
 
     is_final: bool = False
 
