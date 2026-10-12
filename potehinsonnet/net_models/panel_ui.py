@@ -109,6 +109,26 @@ class TableRow(BaseModel):
     actions: list[Button] = Field(default_factory=list)
 
 
+class ListItem(BaseModel):
+    title: str
+    subtitle: str = ""
+    image_url: str = ""    # маленькая картинка слева: https://… или data:image/…
+    actions: list[Button] = Field(default_factory=list)
+
+
+class ItemList(BaseModel):
+    """Компактный список: картинка, название, подпись и кнопки в одну строку.
+
+    Если строк больше max_visible, панель ограничивает высоту и включает прокрутку внутри списка —
+    блоки ниже (например, форма добавления) остаются на виду.
+    """
+
+    type: Literal["item_list"] = "item_list"
+    items: list[ListItem] = Field(default_factory=list)
+    empty: str = "Пусто"
+    max_visible: int = 8
+
+
 class Table(BaseModel):
     type: Literal["table"] = "table"
     columns: list[str]
@@ -216,7 +236,10 @@ class Form(BaseModel):
     submit: str = "Сохранить"
 
 
-Block = Annotated[Text | KeyValue | Image | Media | Link | Button | Table | Form, Field(discriminator="type")]
+Block = Annotated[
+    Text | KeyValue | Image | Media | Link | Button | ItemList | Table | Form,
+    Field(discriminator="type"),
+]
 
 
 class PanelPage(BaseModel):
