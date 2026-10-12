@@ -1,12 +1,14 @@
-"""Протокол веб-панели: запросы панели к боту и плагинам через NATS.
+"""Протокол веб-панели: запросы панели к боту через NATS.
 
-Все темы — request/reply. Бот отвечает на panel.plugins.*, panel.guild.*, panel.permissions.*,
-sound core — на panel.music.* и panel.greetings.*.
+Все темы — request/reply, отвечает бот. Страницы плагинов — отдельный протокол, см. panel_ui.
+Темы panel.guild.* может спрашивать и любой плагин, например чтобы показать имена участников.
 """
 from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+from potehinsonnet.net_models.panel_ui import PanelPageInfo
 
 # ============================================================
 # ТЕМЫ
@@ -15,19 +17,13 @@ from pydantic import BaseModel, Field
 PLUGINS_LIST = "panel.plugins.list"
 
 GUILD_ROLES = "panel.guild.roles"
+GUILD_CHANNELS = "panel.guild.channels"
 GUILD_MEMBERS_GET = "panel.guild.members.get"
 GUILD_MEMBERS_SEARCH = "panel.guild.members.search"
 
 PERMISSIONS_LIST = "panel.permissions.list"
 PERMISSIONS_ADD = "panel.permissions.add"
 PERMISSIONS_REMOVE = "panel.permissions.remove"
-
-GREETINGS_LIST = "panel.greetings.list"
-GREETINGS_SET = "panel.greetings.set"
-GREETINGS_REMOVE = "panel.greetings.remove"
-
-MUSIC_STATE = "panel.music.state"
-MUSIC_CONTROL = "panel.music.control"
 
 
 # ============================================================
@@ -57,6 +53,7 @@ class PluginInfo(BaseModel):
     version: str = ""
     status: str = ""
     last_seen: datetime | None = None
+    pages: list[PanelPageInfo] = Field(default_factory=list)
 
 
 class PluginList(BaseModel):
@@ -75,6 +72,17 @@ class RoleInfo(BaseModel):
 
 class RoleList(BaseModel):
     roles: list[RoleInfo] = Field(default_factory=list)
+
+
+class ChannelInfo(BaseModel):
+    id: int
+    name: str
+    type: str            # "text" или "voice"
+    category: str = ""
+
+
+class ChannelList(BaseModel):
+    channels: list[ChannelInfo] = Field(default_factory=list)
 
 
 class MemberInfo(BaseModel):
@@ -125,64 +133,3 @@ class PermissionChange(GuildRequest):
     permission: str
     type: PermissionTarget
     target_id: int
-
-
-# ============================================================
-# ПРИВЕТСТВИЯ
-# ============================================================
-
-class GreetingInfo(BaseModel):
-    user_id: int
-    sound_url: str
-    disabled: bool = False
-
-
-class GreetingList(BaseModel):
-    default_sound_url: str = ""
-    greetings: list[GreetingInfo] = Field(default_factory=list)
-
-
-class GreetingSet(GuildRequest):
-    user_id: int
-    sound_url: str
-    disabled: bool = False
-
-
-class GreetingRemove(GuildRequest):
-    user_id: int
-
-
-# ============================================================
-# МУЗЫКА
-# ============================================================
-
-class MusicAction(str, Enum):
-    PAUSE = "pause"
-    RESUME = "resume"
-    SKIP = "skip"
-    PREVIOUS = "previous"
-    SHUFFLE = "shuffle"
-    STOP = "stop"
-
-
-class TrackInfo(BaseModel):
-    name: str
-    author: str = ""
-    url: str = ""
-    icon_url: str = ""
-    duration: float = 0
-
-
-class MusicState(BaseModel):
-    playing: bool = False
-    track: TrackInfo | None = None
-    is_paused: bool = False
-    is_shuffled: bool = False
-    has_previous: bool = False
-    can_shuffle: bool = False
-    queue: list[str] = Field(default_factory=list)   # следующие треки
-    current_index: int = -1
-
-
-class MusicControl(GuildRequest):
-    action: MusicAction

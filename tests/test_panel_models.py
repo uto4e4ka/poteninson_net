@@ -15,13 +15,3 @@ def test_permission_change_roundtrip():
 
     assert restored.type is panel.PermissionTarget.ROLE
     assert restored.target_id == 5
-
-
-def test_music_state_defaults_to_nothing_playing():
-    state = panel.MusicState()
-
-    assert not state.playing and state.track is None and state.queue == []
-
-
-def test_music_control_accepts_string_action():
-    assert panel.MusicControl(guild_id=1, action="shuffle").action is panel.MusicAction.SHUFFLE
