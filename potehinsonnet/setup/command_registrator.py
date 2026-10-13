@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 
 from typing import Callable, Awaitable
@@ -23,6 +24,7 @@ class CommandRegistrator:
         self.plugin = plugin
         self.subs: dict[str, Subscription] = {}
         self._commands: dict[str, tuple[Command, Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse]]]] = {}
+        self._tasks: set[asyncio.Task] = set()
 
     async def register_instance_commands(self, instance: object, sync: bool = True):
         """Сканирует объект (плагин) и подписывает все помеченные @command методы.
@@ -66,7 +68,12 @@ class CommandRegistrator:
             method: Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse | None]]
     ) -> Callable[[dict], Awaitable[None]]:
         async def on_call(msg: dict):
-            executed_cmd = ExecutedCommand.model_validate(msg)
+            # Отдельной задачей: долгая команда (анимация) не должна задерживать вызовы других игроков
+            task = asyncio.create_task(handle(ExecutedCommand.model_validate(msg)))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
+
+        async def handle(executed_cmd: ExecutedCommand):
             reply = f"discord.command.reply.{executed_cmd.entity_id}"
 
             try:

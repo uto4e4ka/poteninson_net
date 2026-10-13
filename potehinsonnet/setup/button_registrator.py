@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 from typing import Awaitable, Callable
 
@@ -37,6 +38,7 @@ class ButtonRegistrator:
         self.nats_client = nats_client
         self.sub:Subscription|None =  None
         self.components:dict[str,Callable[[ExecutedComponent], Awaitable[ExecutedComponentResponse|None]]] = {}
+        self._tasks: set[asyncio.Task] = set()
 
 
     async def register_instance(self,instance:object):
@@ -59,6 +61,13 @@ class ButtonRegistrator:
         method = self._find(executed.id)
         if method is None:
             return
+        # Отдельной задачей: NATS отдаёт сообщения подписки по одному, и долгий обработчик
+        # (анимация) иначе держал бы нажатия всех остальных игроков
+        task = asyncio.create_task(self._handle(method, executed))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+
+    async def _handle(self, method, executed: ExecutedComponent):
         reply = f"discord.component.{executed.task_id}.reply"
         try:
             result = method(executed)
