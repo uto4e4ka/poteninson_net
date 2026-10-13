@@ -133,12 +133,18 @@ class Plugin:
 
         return decorator
 
-    def panel_page(self, page_id: str, title: str, icon: str = "🧩") -> Callable[[PageHandler], PageHandler]:
-        """Страница плагина в веб-панели. Функция получает PanelContext и возвращает PanelPage."""
+    def panel_page(
+            self, page_id: str, title: str, icon: str = "🧩", group: str = "",
+    ) -> Callable[[PageHandler], PageHandler]:
+        """Страница плагина в веб-панели. Функция получает PanelContext и возвращает PanelPage.
+
+        group — заголовок, под которым панель соберёт карточки; без него карточки
+        плагина группируются под его названием.
+        """
 
         def decorator(func: PageHandler) -> PageHandler:
             self._ensure_not_started()
-            self._pages[page_id] = (PanelPageInfo(id=page_id, title=title, icon=icon), func)
+            self._pages[page_id] = (PanelPageInfo(id=page_id, title=title, icon=icon, group=group), func)
             return func
 
         return decorator
