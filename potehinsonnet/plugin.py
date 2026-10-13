@@ -206,9 +206,11 @@ class Plugin:
             if self._pages:
                 # Список страниц уходит боту вместе с регистрацией, а панель берёт его у бота
                 self.service.panel_pages = [info for info, _ in self._pages.values()]
-                page_sub = await self.nats.subscribe(page_subject(self.service.name), self._on_page)
+                # Панель грузит все страницы плагина разом — отвечаем параллельно, а не по очереди
+                page_sub = await self.nats.subscribe(page_subject(self.service.name), self._on_page, concurrent=True)
                 stack.push_async_callback(page_sub.unsubscribe)
-                action_sub = await self.nats.subscribe(action_subject(self.service.name), self._on_action)
+                action_sub = await self.nats.subscribe(action_subject(self.service.name), self._on_action,
+                                                       concurrent=True)
                 stack.push_async_callback(action_sub.unsubscribe)
 
             stack.push_async_callback(self.commands.close)

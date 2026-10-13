@@ -1,5 +1,6 @@
 # src/nats_client/client.py
 
+import asyncio
 import json
 import logging
 from collections.abc import Awaitable, Callable
@@ -48,8 +49,17 @@ class NatsClient:
             self,
             subject: str,
             handler: Callable[[dict], Awaitable[dict | None]],
-    ) -> Subscription:  # 1. Меняем возвращаемый тип с None на Subscription
-        async def callback(message: Msg) -> None:
+            concurrent: bool = False,
+    ) -> Subscription:
+        """Подписка: handler получает тело сообщения, его ответ уходит на request.
+
+        NATS отдаёт сообщения одной подписки по очереди. concurrent=True — каждое в своей задаче:
+        для запросов, которые не зависят друг от друга (страницы панели), иначе медленный держит остальных.
+        Где важен порядок (кадры анимации, поток ответов), оставляйте по умолчанию.
+        """
+        tasks: set[asyncio.Task] = set()
+
+        async def handle(message: Msg) -> None:
             try:
                 data = json.loads(message.data)
                 response = await handler(data)
@@ -62,6 +72,15 @@ class NatsClient:
 
             if response is not None and message.reply:
                 await message.respond(_dumps(response))
+
+        async def callback(message: Msg) -> None:
+            if not concurrent:
+                await handle(message)
+                return
+            task = asyncio.create_task(handle(message))
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+
         return await self._client.subscribe(
             subject,
             cb=callback,
