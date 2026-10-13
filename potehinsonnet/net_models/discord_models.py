@@ -332,6 +332,8 @@ class ExecutedComponentResponse(BaseModel):
     files: list[Attachment] = Field(default_factory=list)
     ephemeral:bool = False
     is_finish:bool = True
+    # True — заменить сообщение, на котором нажали кнопку (меню, анимация); False — прислать новое
+    edit: bool = False
 
 
 # ============================================================

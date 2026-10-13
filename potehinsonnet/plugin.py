@@ -38,7 +38,7 @@
 
 import asyncio
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
-from typing import Awaitable, Callable
+from typing import AsyncIterator, Awaitable, Callable
 
 from potehinsonnet.discord_provider import DiscordProvider
 from potehinsonnet.monitoring.health import Health
@@ -64,8 +64,13 @@ from potehinsonnet.net_models.system_models import Service
 from potehinsonnet.setup.button_registrator import ButtonRegistrator
 from potehinsonnet.setup.command_registrator import CommandRegistrator
 
-CommandHandler = Callable[[ExecutedCommand], Awaitable[ExecutedCommandResponse | None]]
-ButtonHandler = Callable[[ExecutedComponent], Awaitable[ExecutedComponentResponse | None]]
+# Один ответ — обычная async-функция; несколько кадров (анимация) — async-генератор с yield
+CommandHandler = Callable[
+    [ExecutedCommand], Awaitable[ExecutedCommandResponse | None] | AsyncIterator[ExecutedCommandResponse]
+]
+ButtonHandler = Callable[
+    [ExecutedComponent], Awaitable[ExecutedComponentResponse | None] | AsyncIterator[ExecutedComponentResponse]
+]
 PageHandler = Callable[[PanelContext], Awaitable[PanelPage]]
 ActionHandler = Callable[[PanelContext, dict], Awaitable[PanelResult | str | None]]
 
