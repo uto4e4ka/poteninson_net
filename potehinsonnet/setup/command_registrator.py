@@ -1,3 +1,4 @@
+import inspect
 
 from typing import Callable, Awaitable
 from warnings import deprecated
@@ -66,14 +67,25 @@ class CommandRegistrator:
     ) -> Callable[[dict], Awaitable[None]]:
         async def on_call(msg: dict):
             executed_cmd = ExecutedCommand.model_validate(msg)
+            reply = f"discord.command.reply.{executed_cmd.entity_id}"
 
             try:
-                response = await method(executed_cmd)
+                result = method(executed_cmd)
+                if inspect.isasyncgen(result):
+                    # Генератор — несколько кадров подряд (анимация, прогресс): бот правит сообщение на каждом
+                    last = None
+                    async for frame in result:
+                        last = frame
+                        await self.nats_client.publish(reply, frame.model_dump(mode="json"))
+                    if last is not None and not last.is_final:
+                        # Забыли пометить последний кадр — иначе бот ждал бы следующего до таймаута
+                        await self.nats_client.publish(
+                            reply, last.model_copy(update={"is_final": True}).model_dump(mode="json"),
+                        )
+                    return
+                response = await result
                 if response:
-                    await self.nats_client.publish(
-                        f"discord.command.reply.{executed_cmd.entity_id}",
-                        response.model_dump(mode="json"),
-                    )
+                    await self.nats_client.publish(reply, response.model_dump(mode="json"))
             except Exception as e:
                 # Ошибка — последний ответ, иначе бот ждёт до таймаута
                 await self.nats_client.publish(

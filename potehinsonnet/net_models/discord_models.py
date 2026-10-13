@@ -402,6 +402,10 @@ class Command(BaseModel):
 
     ephemeral: bool = True
 
+    # Антиспам: один игрок может вызывать команду не чаще раза в cooldown секунд (0 — без ограничения).
+    # Проверяет бот до отправки плагину, лишний вызов получает ответ, видимый только ему.
+    cooldown: float = Field(default=0, ge=0)
+
     args: list[CommandArgument] = Field(
         default_factory=list
     )
