@@ -162,6 +162,7 @@ class NumberField(BaseModel):
 class Option(BaseModel):
     value: str
     label: str
+    group: str = ""   # раздел в списке: подряд идущие варианты с одной группой показываются вместе
 
 
 class Select(BaseModel):
@@ -170,6 +171,17 @@ class Select(BaseModel):
     label: str
     options: list[Option] = Field(default_factory=list)
     value: str = ""
+
+
+class MultiSelect(BaseModel):
+    """Выбор нескольких вариантов: поиск, выбранное — «чипами». Плагин получает list[str] (пустой — ничего)."""
+
+    type: Literal["multiselect"] = "multiselect"
+    name: str
+    label: str
+    options: list[Option] = Field(default_factory=list)
+    value: list[str] = Field(default_factory=list)
+    placeholder: str = "Найти…"
 
 
 class Toggle(BaseModel):
@@ -220,7 +232,7 @@ class FileField(BaseModel):
 
 
 FormField = Annotated[
-    TextField | NumberField | Select | Toggle | MemberPicker | RolePicker | ChannelPicker | FileField,
+    TextField | NumberField | Select | MultiSelect | Toggle | MemberPicker | RolePicker | ChannelPicker | FileField,
     Field(discriminator="type"),
 ]
 
@@ -228,7 +240,8 @@ FormField = Annotated[
 class Form(BaseModel):
     """Форма: при отправке плагин получает значения полей.
 
-    Числа — float, переключатели — bool, выбор участника/роли/канала — int (или None),
+    Числа — float, переключатели — bool, несколько вариантов (MultiSelect) — list[str],
+    выбор участника/роли/канала — int (или None),
     файл — Attachment (или None). Файл едет через NATS: до 700 КБ.
     """
 
