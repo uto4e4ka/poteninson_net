@@ -5,6 +5,7 @@
 """
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +25,13 @@ GUILD_MEMBERS_SEARCH = "panel.guild.members.search"
 PERMISSIONS_LIST = "panel.permissions.list"
 PERMISSIONS_ADD = "panel.permissions.add"
 PERMISSIONS_REMOVE = "panel.permissions.remove"
+
+# Установка и запуск плагинов — хост внутри бота
+HOST_LIST = "panel.host.list"
+HOST_INSTALL = "panel.host.install"
+HOST_CONTROL = "panel.host.control"
+HOST_LOGS = "panel.host.logs"
+HOST_UPLOAD = "panel.host.upload"      # zip с плагином — по кускам, потом HOST_INSTALL с source="zip"
 
 
 # ============================================================
@@ -58,6 +66,63 @@ class PluginInfo(BaseModel):
 
 class PluginList(BaseModel):
     plugins: list[PluginInfo] = Field(default_factory=list)
+
+
+# ============================================================
+# УСТАНОВКА ПЛАГИНОВ (хост внутри бота)
+# ============================================================
+
+class InstalledPlugin(BaseModel):
+    """Плагин, который поставил и запускает хост."""
+
+    name: str
+    label: str = ""
+    description: str = ""
+    version: str = ""
+    source: Literal["git", "path", "zip"] = "path"
+    url: str = ""                    # git — откуда клонировали; path — папка на сервере; zip — имя архива
+    ref: str = ""                    # git — ветка или тег
+    state: Literal["running", "stopped", "crashed", "starting"] = "stopped"
+    enabled: bool = True             # поднимать при старте бота и после падения
+    pid: int | None = None
+    restarts: int = 0                # сколько раз подряд падал
+    permissions: list[str] = Field(default_factory=list)   # что плагин просит у бота — по-человечески
+    error: str = ""                  # последняя ошибка запуска
+
+
+class InstalledList(BaseModel):
+    plugins: list[InstalledPlugin] = Field(default_factory=list)
+
+
+class InstallRequest(BaseModel):
+    source: Literal["git", "path", "zip"]
+    url: str = ""                    # git: https://github.com/…; path: папка на сервере бота; zip: upload_id
+    ref: str = ""                    # git: ветка или тег (пусто — по умолчанию)
+
+
+class UploadChunk(BaseModel):
+    """Кусок загружаемого zip: NATS не пропустит большой файл одним сообщением."""
+
+    upload_id: str                   # одинаковый у всех кусков одного файла
+    index: int                       # с 0
+    total: int
+    filename: str = ""
+    data: str                        # base64
+
+
+class ControlRequest(BaseModel):
+    name: str
+    action: Literal["start", "stop", "restart", "remove", "enable", "disable"]
+    keep_data: bool = True           # remove: оставить данные плагина
+
+
+class LogsRequest(BaseModel):
+    name: str
+    lines: int = 200
+
+
+class LogsResponse(BaseModel):
+    lines: list[str] = Field(default_factory=list)
 
 
 # ============================================================

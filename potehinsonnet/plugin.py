@@ -38,7 +38,7 @@
 
 import asyncio
 from contextlib import AbstractAsyncContextManager, AsyncExitStack
-from typing import AsyncIterator, Awaitable, Callable
+from typing import TYPE_CHECKING, AsyncIterator, Awaitable, Callable
 
 from potehinsonnet.discord_provider import DiscordProvider
 from potehinsonnet.monitoring.health import Health
@@ -63,6 +63,9 @@ from potehinsonnet.net_models.panel_ui import (
 from potehinsonnet.net_models.system_models import Service
 from potehinsonnet.setup.button_registrator import ButtonRegistrator
 from potehinsonnet.setup.command_registrator import CommandRegistrator
+
+if TYPE_CHECKING:
+    from potehinsonnet.context import PluginContext
 
 # Один ответ — обычная async-функция; несколько кадров (анимация) — async-генератор с yield
 CommandHandler = Callable[
@@ -111,6 +114,20 @@ class Plugin:
         self._pages: dict[str, tuple[PanelPageInfo, PageHandler]] = {}
         self._actions: dict[str, ActionHandler] = {}
         self._stack: AsyncExitStack | None = None
+        self.context: "PluginContext | None" = None   # если собран из манифеста (from_context)
+
+    @classmethod
+    def from_context(cls, ctx: "PluginContext", *, nats: NatsClient | None = None) -> "Plugin":
+        """Плагин по манифесту: имя, версия и описание — из plugin.toml, адрес NATS и токен — от хоста.
+
+            def create_plugin(ctx: PluginContext) -> Plugin:
+                plugin = Plugin.from_context(ctx)
+                plugin.register(MyCommands(Storage(ctx.data_dir)))
+                return plugin
+        """
+        plugin = cls(ctx.manifest.service(), nats_url=ctx.nats_url, nats=nats)
+        plugin.context = ctx
+        return plugin
 
     # ------------------------------------------------------------------
     # Регистрация

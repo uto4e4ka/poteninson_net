@@ -286,6 +286,7 @@ class PageRequest(PanelContext):
 class ActionRequest(PanelContext):
     page: str
     action: str
-    values: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    # Списки — из MultiSelect
+    values: dict[str, str | int | float | bool | list[str] | None] = Field(default_factory=dict)
     # Загруженные файлы (FileField); плагин получает их в values под тем же именем
     files: dict[str, Attachment] = Field(default_factory=dict)
