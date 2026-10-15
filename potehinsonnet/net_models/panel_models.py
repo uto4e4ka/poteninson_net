@@ -32,6 +32,7 @@ HOST_INSTALL = "panel.host.install"
 HOST_CONTROL = "panel.host.control"
 HOST_LOGS = "panel.host.logs"
 HOST_UPLOAD = "panel.host.upload"      # zip с плагином — по кускам, потом HOST_INSTALL с source="zip"
+BOT_OWNERS = "panel.bot.owners"        # владельцы бота (приложения Discord) — только они управляют плагинами
 
 
 # ============================================================
@@ -94,7 +95,14 @@ class InstalledList(BaseModel):
     plugins: list[InstalledPlugin] = Field(default_factory=list)
 
 
+class OwnersResponse(BaseModel):
+    """Владельцы бота: владелец приложения Discord или все участники его команды."""
+
+    ids: list[int] = Field(default_factory=list)
+
+
 class InstallRequest(BaseModel):
+    actor_id: int | None = None      # кто из панели просит — бот проверяет, что это владелец
     source: Literal["git", "path", "zip"]
     url: str = ""                    # git: https://github.com/…; path: папка на сервере бота; zip: upload_id
     ref: str = ""                    # git: ветка или тег (пусто — по умолчанию)
@@ -103,6 +111,7 @@ class InstallRequest(BaseModel):
 class UploadChunk(BaseModel):
     """Кусок загружаемого zip: NATS не пропустит большой файл одним сообщением."""
 
+    actor_id: int | None = None
     upload_id: str                   # одинаковый у всех кусков одного файла
     index: int                       # с 0
     total: int
@@ -111,12 +120,14 @@ class UploadChunk(BaseModel):
 
 
 class ControlRequest(BaseModel):
+    actor_id: int | None = None
     name: str
     action: Literal["start", "stop", "restart", "remove", "enable", "disable"]
     keep_data: bool = True           # remove: оставить данные плагина
 
 
 class LogsRequest(BaseModel):
+    actor_id: int | None = None
     name: str
     lines: int = 200
 
