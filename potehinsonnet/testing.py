@@ -12,13 +12,18 @@
 - сообщения одной подписки обрабатываются строго по очереди;
 - unsubscribe() из обработчика своей же подписки отменяет этот обработчик,
   код после отписки не выполнится.
+
+Объектное хранилище JetStream (для FileStore) тоже есть: файлы лежат в памяти, bus.objects[ведро][имя].
 """
 
 import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import Any, Awaitable, Callable
+
+from nats.js.errors import BucketNotFoundError, ObjectNotFoundError
 
 from potehinsonnet.net import NatsClient
 
@@ -91,6 +96,45 @@ class FakeSubscription:
         return self.closed or (self.queue.empty() and not self.busy)
 
 
+class FakeObjectStore:
+    """Как nats.js.object_store.ObjectStore: put / get / delete, файлы — в памяти."""
+
+    def __init__(self, objects: dict[str, bytes]):
+        self.objects = objects
+
+    async def put(self, name: str, data, meta=None):
+        content = data if isinstance(data, (bytes, str)) else data.read()
+        self.objects[name] = content.encode() if isinstance(content, str) else content
+        return SimpleNamespace(name=name, size=len(self.objects[name]))
+
+    async def get(self, name: str, writeinto=None, show_deleted=False):
+        if name not in self.objects:
+            raise ObjectNotFoundError()
+        if writeinto is not None:
+            writeinto.write(self.objects[name])
+            return SimpleNamespace(data=None)
+        return SimpleNamespace(data=self.objects[name])
+
+    async def delete(self, name: str):
+        if self.objects.pop(name, None) is None:
+            raise ObjectNotFoundError()
+        return SimpleNamespace()
+
+
+class FakeJetStream:
+    def __init__(self, bus: "FakeNats"):
+        self.bus = bus
+
+    async def object_store(self, bucket: str) -> FakeObjectStore:
+        if bucket not in self.bus.objects:
+            raise BucketNotFoundError()
+        return FakeObjectStore(self.bus.objects[bucket])
+
+    async def create_object_store(self, bucket: str = None, config=None, **params) -> FakeObjectStore:
+        self.bus.objects.setdefault(bucket, {})
+        return FakeObjectStore(self.bus.objects[bucket])
+
+
 @dataclass
 class FakeNats:
     """Подменяет `nats.aio.client.Client` внутри `NatsClient`."""
@@ -98,6 +142,10 @@ class FakeNats:
     subscriptions: list[FakeSubscription] = field(default_factory=list)
     published: list[tuple[str, Any]] = field(default_factory=list)
     errors: list[Exception] = field(default_factory=list)
+    objects: dict[str, dict[str, bytes]] = field(default_factory=dict)   # хранилище файлов: ведро → имя → байты
+
+    def jetstream(self) -> FakeJetStream:
+        return FakeJetStream(self)
 
     def client(self) -> NatsClient:
         nats_client = NatsClient()

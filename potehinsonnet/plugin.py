@@ -50,17 +50,9 @@ from potehinsonnet.net_models.discord_models import (
     ExecutedComponent,
     ExecutedComponentResponse,
 )
-from potehinsonnet.net_models.panel_models import PanelResult
-from potehinsonnet.net_models.panel_ui import (
-    ActionRequest,
-    PageRequest,
-    PanelContext,
-    PanelPage,
-    PageScope,
-    PanelPageInfo,
-    action_subject,
-    page_subject,
-)
+from potehinsonnet.files import FileStore
+from potehinsonnet.net_models.panel_ui import PageScope
+from potehinsonnet.panel_router import ActionHandler, PageHandler, PanelRouter
 from potehinsonnet.net_models.system_models import Service
 from potehinsonnet.setup.button_registrator import ButtonRegistrator
 from potehinsonnet.setup.command_registrator import CommandRegistrator
@@ -75,8 +67,6 @@ CommandHandler = Callable[
 ButtonHandler = Callable[
     [ExecutedComponent], Awaitable[ExecutedComponentResponse | None] | AsyncIterator[ExecutedComponentResponse]
 ]
-PageHandler = Callable[[PanelContext], Awaitable[PanelPage]]
-ActionHandler = Callable[[PanelContext, dict], Awaitable[PanelResult | str | None]]
 
 
 class _Handlers:
@@ -112,8 +102,9 @@ class Plugin:
         self._handlers = _Handlers()
         self._objects: list[object] = [self._handlers]
         self._lifespans: list[AbstractAsyncContextManager] = []
-        self._pages: dict[str, tuple[PanelPageInfo, PageHandler]] = {}
-        self._actions: dict[str, ActionHandler] = {}
+        self.panel = PanelRouter(self.nats, service.name)
+        # Большие файлы из панели (FileField(large=True)): await plugin.files.save(values["archive"], path)
+        self.files = FileStore(self.nats)
         self._stack: AsyncExitStack | None = None
         self.context: "PluginContext | None" = None   # если собран из манифеста (from_context)
 
@@ -167,13 +158,8 @@ class Plugin:
         может переложить страницу в панели.
         """
 
-        def decorator(func: PageHandler) -> PageHandler:
-            self._ensure_not_started()
-            info = PanelPageInfo(id=page_id, title=title, icon=icon, group=group, scope=scope)
-            self._pages[page_id] = (info, func)
-            return func
-
-        return decorator
+        self._ensure_not_started()
+        return self.panel.page(page_id, title, icon, group, scope)
 
     def panel_action(self, action: str) -> Callable[[ActionHandler], ActionHandler]:
         """Кнопка или форма на странице плагина. Функция получает PanelContext и значения полей.
@@ -182,12 +168,8 @@ class Plugin:
         администратору как ошибка.
         """
 
-        def decorator(func: ActionHandler) -> ActionHandler:
-            self._ensure_not_started()
-            self._actions[action] = func
-            return func
-
-        return decorator
+        self._ensure_not_started()
+        return self.panel.action(action)
 
     def register(self, *objects: object) -> None:
         """Зарегистрировать объекты с методами, помеченными @command и @button."""
@@ -224,15 +206,11 @@ class Plugin:
             for obj in self._objects:
                 await self.buttons.register_instance(obj)
 
-            if self._pages:
+            if self.panel.pages:
                 # Список страниц уходит боту вместе с регистрацией, а панель берёт его у бота
-                self.service.panel_pages = [info for info, _ in self._pages.values()]
-                # Панель грузит все страницы плагина разом — отвечаем параллельно, а не по очереди
-                page_sub = await self.nats.subscribe(page_subject(self.service.name), self._on_page, concurrent=True)
-                stack.push_async_callback(page_sub.unsubscribe)
-                action_sub = await self.nats.subscribe(action_subject(self.service.name), self._on_action,
-                                                       concurrent=True)
-                stack.push_async_callback(action_sub.unsubscribe)
+                self.service.panel_pages = self.panel.infos
+                await self.panel.start()
+                stack.push_async_callback(self.panel.stop)
 
             stack.push_async_callback(self.commands.close)
             # Команды отправляются боту после регистрации и повторно, если бот перезапустился
@@ -249,32 +227,14 @@ class Plugin:
         if stack is not None:
             await stack.aclose()
 
-    async def _on_page(self, body: dict) -> dict:
-        request = PageRequest.model_validate(body)
-        entry = self._pages.get(request.page)
-        if entry is None:
-            raise ValueError(f"Страница {request.page} не найдена")
-        _, handler = entry
-        page = await handler(PanelContext(guild_id=request.guild_id, user=request.user))
-        return page.model_dump(mode="json")
+    # Старые имена: страницы и действия теперь живут в self.panel
+    @property
+    def _pages(self):
+        return self.panel.pages
 
-    async def _on_action(self, body: dict) -> dict:
-        request = ActionRequest.model_validate(body)
-        handler = self._actions.get(request.action)
-        if handler is None:
-            return PanelResult(ok=False, message=f"Действие {request.action} не найдено").model_dump(mode="json")
-
-        try:
-            values = {**request.values, **request.files}
-            result = await handler(PanelContext(guild_id=request.guild_id, user=request.user), values)
-        except Exception as e:
-            result = PanelResult(ok=False, message=str(e) or type(e).__name__)
-
-        if result is None:
-            result = PanelResult(message="Готово")
-        elif isinstance(result, str):
-            result = PanelResult(message=result)
-        return result.model_dump(mode="json")
+    @property
+    def _actions(self):
+        return self.panel.actions
 
     async def _install_commands(self, bot: Service) -> None:
         for obj in self._objects:

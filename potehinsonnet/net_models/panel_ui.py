@@ -227,14 +227,29 @@ class ChannelPicker(BaseModel):
     kind: Literal["text", "voice", "any"] = "text"
 
 
+class FileRef(BaseModel):
+    """Большой файл в хранилище NATS (Object Store). Забрать: FileStore.save(ref, path) или read(ref)."""
+
+    type: Literal["file_ref"] = "file_ref"
+    bucket: str
+    name: str                 # имя объекта в хранилище
+    filename: str             # как файл назывался у пользователя
+    size: int = 0
+
+
 class FileField(BaseModel):
-    """Загрузка файла. Плагин получает Attachment (или None, если файл не выбран)."""
+    """Загрузка файла. Плагин получает Attachment (или None, если файл не выбран).
+
+    large=True — файл любого размера: панель кладёт его в хранилище NATS, а плагин получает FileRef
+    (и сам забирает файл через plugin.files). Без large — до 700 КБ, картинки панель сама уменьшит.
+    """
 
     type: Literal["file"] = "file"
     name: str
     label: str
     accept: str = ""          # например "image/*"
     required: bool = False
+    large: bool = False
 
 
 FormField = Annotated[
@@ -248,19 +263,39 @@ class Form(BaseModel):
 
     Числа — float, переключатели — bool, несколько вариантов (MultiSelect) — list[str],
     выбор участника/роли/канала — int (или None),
-    файл — Attachment (или None). Файл едет через NATS: до 700 КБ.
+    файл — Attachment (или None), большой файл (large) — FileRef.
+    auto_submit — отправить сразу, как только поле изменилось (без кнопки): выбор в списке, файл.
     """
 
     type: Literal["form"] = "form"
     action: str
     fields: list[FormField] = Field(default_factory=list)
     submit: str = "Сохранить"
+    auto_submit: bool = False
+
+
+class Code(BaseModel):
+    """Моноширинный текст с прокруткой: логи, вывод команд."""
+
+    type: Literal["code"] = "code"
+    text: str
+    max_lines: int = 20       # выше — прокрутка внутри блока
+
+
+class Section(BaseModel):
+    """Группа блоков под заголовком; collapsed — свёрнута, пока не нажмут на заголовок."""
+
+    type: Literal["section"] = "section"
+    title: str
+    blocks: list["Block"] = Field(default_factory=list)
+    collapsed: bool = False
 
 
 Block = Annotated[
-    Text | KeyValue | Image | Media | Link | Button | ItemList | Table | Form,
+    Text | KeyValue | Image | Media | Link | Button | ItemList | Table | Form | Code | Section,
     Field(discriminator="type"),
 ]
+Section.model_rebuild()
 
 
 class PanelPage(BaseModel):
@@ -293,7 +328,7 @@ class PageRequest(PanelContext):
 class ActionRequest(PanelContext):
     page: str
     action: str
-    # Списки — из MultiSelect
-    values: dict[str, str | int | float | bool | list[str] | None] = Field(default_factory=dict)
+    # Списки — из MultiSelect, FileRef — большие файлы (FileField(large=True))
+    values: dict[str, FileRef | str | int | float | bool | list[str] | None] = Field(default_factory=dict)
     # Загруженные файлы (FileField); плагин получает их в values под тем же именем
     files: dict[str, Attachment] = Field(default_factory=dict)
