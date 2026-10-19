@@ -56,6 +56,7 @@ from potehinsonnet.net_models.panel_ui import (
     PageRequest,
     PanelContext,
     PanelPage,
+    PageScope,
     PanelPageInfo,
     action_subject,
     page_subject,
@@ -156,17 +157,20 @@ class Plugin:
         return decorator
 
     def panel_page(
-            self, page_id: str, title: str, icon: str = "🧩", group: str = "",
+            self, page_id: str, title: str, icon: str = "🧩", group: str = "", scope: PageScope = "guild",
     ) -> Callable[[PageHandler], PageHandler]:
         """Страница плагина в веб-панели. Функция получает PanelContext и возвращает PanelPage.
 
-        group — заголовок, под которым панель соберёт карточки; без него карточки
-        плагина группируются под его названием.
+        group — заголовок, под которым панель соберёт страницы; без него — под названием плагина.
+        scope — где страница по умолчанию: "guild" — в настройках каждого сервера (ctx.guild_id — этот
+        сервер), "bot" — в настройках всего бота, только владельцу (ctx.guild_id — None). Владелец бота
+        может переложить страницу в панели.
         """
 
         def decorator(func: PageHandler) -> PageHandler:
             self._ensure_not_started()
-            self._pages[page_id] = (PanelPageInfo(id=page_id, title=title, icon=icon, group=group), func)
+            info = PanelPageInfo(id=page_id, title=title, icon=icon, group=group, scope=scope)
+            self._pages[page_id] = (info, func)
             return func
 
         return decorator

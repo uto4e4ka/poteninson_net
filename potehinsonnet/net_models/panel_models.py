@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from potehinsonnet.net_models.panel_ui import PanelPageInfo
+from potehinsonnet.net_models.panel_ui import PageScope, PanelPageInfo
 
 # ============================================================
 # ТЕМЫ
@@ -33,6 +33,9 @@ HOST_CONTROL = "panel.host.control"
 HOST_LOGS = "panel.host.logs"
 HOST_UPLOAD = "panel.host.upload"      # zip с плагином — по кускам, потом HOST_INSTALL с source="zip"
 BOT_OWNERS = "panel.bot.owners"        # владельцы бота (приложения Discord) — только они управляют плагинами
+BOT_GUILDS = "panel.bot.guilds"        # серверы бота и может ли этот человек ими управлять
+PAGE_SCOPES = "panel.pages.scopes"     # где показывать страницы плагинов: переопределения владельца бота
+PAGE_SCOPE_SET = "panel.pages.scope.set"
 
 
 # ============================================================
@@ -99,6 +102,45 @@ class OwnersResponse(BaseModel):
     """Владельцы бота: владелец приложения Discord или все участники его команды."""
 
     ids: list[int] = Field(default_factory=list)
+
+
+class GuildsRequest(BaseModel):
+    user_id: int                     # для кого: can_manage — может ли он управлять сервером
+
+
+class GuildInfo(BaseModel):
+    id: int
+    name: str
+    icon_url: str | None = None
+    can_manage: bool = False         # владелец сервера, «Администратор» или «Управлять сервером»; владелец бота — везде
+
+
+class GuildList(BaseModel):
+    guilds: list[GuildInfo] = Field(default_factory=list)
+
+
+# Видимость страницы: как решил плагин, или куда переложил владелец бота; hidden — нигде
+PageVisibility = Literal["bot", "guild", "hidden"]
+
+
+def page_key(plugin: str, page: str) -> str:
+    return f"{plugin}/{page}"
+
+
+class PageScopes(BaseModel):
+    """Переопределения владельца бота: ключ page_key → куда. Чего нет — там, где решил плагин."""
+
+    scopes: dict[str, PageVisibility] = Field(default_factory=dict)
+
+    def effective(self, plugin: str, page: PanelPageInfo) -> PageVisibility:
+        return self.scopes.get(page_key(plugin, page.id), page.scope)
+
+
+class PageScopeChange(BaseModel):
+    actor_id: int | None = None      # бот проверяет, что это владелец
+    plugin: str
+    page: str
+    scope: PageVisibility | None = None   # None — вернуть как решил плагин
 
 
 class InstallRequest(BaseModel):
