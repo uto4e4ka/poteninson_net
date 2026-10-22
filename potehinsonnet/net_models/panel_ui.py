@@ -272,6 +272,8 @@ class Form(BaseModel):
     fields: list[FormField] = Field(default_factory=list)
     submit: str = "Сохранить"
     auto_submit: bool = False
+    # Скрытые значения: уходят вместе с полями, как values у Button (например, о каком плагине форма)
+    values: dict[str, str] = Field(default_factory=dict)
 
 
 class Code(BaseModel):

@@ -43,3 +43,19 @@ async def test_plugin_action_gets_file_ref_and_reads_it():
 
     assert result["ok"] and got == [b"zip-bytes"]
     assert isinstance(ActionRequest.model_validate(request.model_dump(mode="json")).values["archive"], FileRef)
+
+
+async def test_action_can_return_a_file_to_download():
+    bus = FakeNats()
+    plugin = Plugin(Service(name="p", label="P", author="", version="0"), nats=bus.client())
+
+    @plugin.panel_action("export")
+    async def export(ctx, values):
+        from potehinsonnet.net_models.panel_models import PanelResult
+        return PanelResult(message="Готово", download=await plugin.files.put(b"data", "export.zip"))
+
+    request = ActionRequest(user={"id": 1, "name": "a"}, page="x", action="export")
+    result = await plugin.panel.on_action(request.model_dump(mode="json"))
+
+    ref = FileRef.model_validate(result["download"])
+    assert result["ok"] and ref.filename == "export.zip" and await plugin.files.read(ref) == b"data"

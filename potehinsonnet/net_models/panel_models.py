@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from potehinsonnet.net_models.panel_ui import PageScope, PanelPageInfo
+from potehinsonnet.net_models.panel_ui import FileRef, PageScope, PanelPageInfo
 
 # ============================================================
 # ТЕМЫ
@@ -51,6 +51,8 @@ class PanelResult(BaseModel):
 
     ok: bool = True
     message: str = ""
+    # Файл, который панель сразу отдаст браузеру: положите его через plugin.files.put(...)
+    download: FileRef | None = None
 
 
 # ============================================================
