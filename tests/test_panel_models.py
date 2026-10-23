@@ -66,3 +66,10 @@ def test_form_extra_buttons_roundtrip():
     form = PanelPage.model_validate(page.model_dump(mode="json")).blocks[0]
     assert [(b.action, b.style) for b in form.buttons] == [("delete", "danger")]
     assert Form(action="x").buttons == []                     # старые формы — без изменений
+
+
+def test_textarea_field_roundtrip():
+    from potehinsonnet.net_models.panel_ui import Form, PanelPage, TextArea
+    page = PanelPage(blocks=[Form(action="save", fields=[TextArea(name="text", label="JSON", value='{"a": 1}\n', rows=20)])])
+    field = PanelPage.model_validate(page.model_dump(mode="json")).blocks[0].fields[0]
+    assert type(field).__name__ == "TextArea" and field.value == '{"a": 1}\n' and field.monospace

@@ -155,6 +155,23 @@ class TextField(BaseModel):
     required: bool = False
 
 
+class TextArea(BaseModel):
+    """Многострочный текст: заметки, JSON, конфиги. Плагин получает строку (переводы строк — 
+).
+
+    monospace — моноширинный шрифт (для кода и данных).
+    """
+
+    type: Literal["textarea"] = "textarea"
+    name: str
+    label: str
+    value: str = ""
+    placeholder: str = ""
+    rows: int = 10
+    monospace: bool = True
+    required: bool = False
+
+
 class NumberField(BaseModel):
     type: Literal["number"] = "number"
     name: str
@@ -253,7 +270,8 @@ class FileField(BaseModel):
 
 
 FormField = Annotated[
-    TextField | NumberField | Select | MultiSelect | Toggle | MemberPicker | RolePicker | ChannelPicker | FileField,
+    TextField | TextArea | NumberField | Select | MultiSelect | Toggle | MemberPicker | RolePicker | ChannelPicker
+    | FileField,
     Field(discriminator="type"),
 ]
 
