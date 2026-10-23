@@ -14,6 +14,9 @@
 - кэш: пока файл не менялся (время и размер те же), с диска не читаем; изменили снаружи
   (редактор в панели, руками) — перечитаем. Каждое чтение отдаёт новые объекты: правка полученного
   объекта без save() в данных не появится.
+
+Сырой JSON без моделей (свой формат, постепенный переход старого кода) — ctx.data.file("x.json"):
+read() → данные или None, write(данные) — с той же атомарностью, кэшем и защитой от битых файлов.
 """
 import json
 import logging
@@ -33,12 +36,15 @@ class StorageError(Exception):
     """Файл данных испорчен или имя выходит за папку данных."""
 
 
-class _JsonFile:
-    """Чтение и запись одного JSON-файла: атомарно, с кэшем по времени изменения."""
+class JsonFile:
+    """Один JSON-файл как есть, без моделей: атомарная запись, кэш по времени изменения, битый — в сторону.
+
+    read() каждый раз отдаёт новые объекты: правка полученного словаря на месте ни кэш, ни файл не меняет.
+    """
 
     def __init__(self, path: Path):
         self.path = Path(path)
-        self._cache: tuple[tuple[int, int], Any] | None = None   # (mtime_ns, размер), разобранный JSON
+        self._cache: tuple[tuple[int, int], str] | None = None   # (mtime_ns, размер), текст файла
         self._lock = threading.Lock()
 
     def read(self) -> Any | None:
@@ -49,14 +55,16 @@ class _JsonFile:
             self._cache = None
             return None
         stamp = (stat.st_mtime_ns, stat.st_size)
-        if self._cache is not None and self._cache[0] == stamp:
-            return self._cache[1]
+        if self._cache is None or self._cache[0] != stamp:
+            try:
+                text = self.path.read_text(encoding="utf-8")
+            except UnicodeDecodeError as e:
+                self.quarantine(f"не читается как текст: {e}")
+            self._cache = (stamp, text)
         try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            return json.loads(self._cache[1])
+        except json.JSONDecodeError as e:
             self.quarantine(f"не читается как JSON: {e}")
-        self._cache = (stamp, data)
-        return data
 
     def write(self, data: Any) -> None:
         text = json.dumps(data, ensure_ascii=False, indent=2)
@@ -66,7 +74,7 @@ class _JsonFile:
             tmp.write_text(text, encoding="utf-8")
             tmp.replace(self.path)
             stat = self.path.stat()
-            self._cache = ((stat.st_mtime_ns, stat.st_size), json.loads(text))
+            self._cache = ((stat.st_mtime_ns, stat.st_size), text)
 
     def quarantine(self, reason: str) -> None:
         """Убрать испорченный файл в сторону (не удалять!) и сообщить об этом."""
@@ -81,7 +89,7 @@ class JsonDocument(Generic[M]):
     """Один объект в файле: настройки, состояние."""
 
     def __init__(self, path: Path, model: type[M], default: M | Callable[[], M] | None = None):
-        self._file = _JsonFile(path)
+        self._file = JsonFile(path)
         self.model = model
         self._default = default
 
@@ -119,7 +127,7 @@ class JsonCollection(Generic[M]):
     """Набор записей с ключом в файле — список объектов, порядок сохраняется."""
 
     def __init__(self, path: Path, model: type[M], key: str):
-        self._file = _JsonFile(path)
+        self._file = JsonFile(path)
         self.model = model
         self.key = key
         self._adapter = TypeAdapter(list[model])
@@ -191,6 +199,10 @@ class DataDir:
 
     def document(self, name: str, model: type[M], default: M | Callable[[], M] | None = None) -> JsonDocument[M]:
         return self._open(("document", name), lambda: JsonDocument(self.path(name), model, default))
+
+    def file(self, name: str) -> JsonFile:
+        """Сырой JSON-файл (без модели): read() / write()."""
+        return self._open(("file", name), lambda: JsonFile(self.path(name)))
 
     def _open(self, key: tuple[str, str], create: Callable[[], Any]) -> Any:
         if key not in self._opened:

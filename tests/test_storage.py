@@ -119,3 +119,15 @@ def test_context_data_points_to_plugin_data_dir(tmp_path):
     ctx.data.collection("pets.json", Pet, key="pet_id").put(Pet(pet_id="a", name="Кот"))
     assert (tmp_path / "host-data" / "pets.json").exists()
     assert ctx.data is ctx.data
+
+
+def test_raw_json_file_returns_fresh_objects(tmp_path):
+    data = DataDir(tmp_path)
+    raw = data.file("pets.json")
+    assert raw.read() is None
+    raw.write([{"pet_id": "a", "name": "Кот"}])
+
+    first = raw.read()
+    first[0]["name"] = "Испортили на месте"                                 # правка полученного словаря…
+    assert raw.read()[0]["name"] == "Кот"                                   # …ни кэш, ни файл не тронула
+    assert data.file("pets.json") is raw
