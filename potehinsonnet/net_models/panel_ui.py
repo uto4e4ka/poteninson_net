@@ -258,6 +258,19 @@ FormField = Annotated[
 ]
 
 
+class FormButton(BaseModel):
+    """Ещё одна кнопка формы: отправляет те же поля (и values формы) в своё действие.
+
+        Form(action="download", submit="📥 Скачать", fields=[MultiSelect(name="files", …)],
+             buttons=[FormButton(action="delete", label="🗑 Удалить", style="danger", confirm="Удалить?")])
+    """
+
+    action: str
+    label: str
+    style: Literal["normal", "primary", "danger"] = "normal"
+    confirm: str = ""
+
+
 class Form(BaseModel):
     """Форма: при отправке плагин получает значения полей.
 
@@ -274,6 +287,8 @@ class Form(BaseModel):
     auto_submit: bool = False
     # Скрытые значения: уходят вместе с полями, как values у Button (например, о каком плагине форма)
     values: dict[str, str] = Field(default_factory=dict)
+    # Дополнительные кнопки: те же поля — в другие действия. Основная (submit) отправляет в action
+    buttons: list[FormButton] = Field(default_factory=list)
 
 
 class Code(BaseModel):

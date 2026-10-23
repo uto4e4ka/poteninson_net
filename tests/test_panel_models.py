@@ -57,3 +57,12 @@ def test_bot_page_context_has_no_guild():
     from potehinsonnet.net_models.panel_ui import PageRequest
     request = PageRequest.model_validate({"user": {"id": 1, "name": "owner"}, "page": "characters"})
     assert request.guild_id is None
+
+
+def test_form_extra_buttons_roundtrip():
+    from potehinsonnet.net_models.panel_ui import Form, FormButton, MultiSelect, PanelPage
+    page = PanelPage(blocks=[Form(action="download", fields=[MultiSelect(name="files", label="Файлы")],
+                                  buttons=[FormButton(action="delete", label="Удалить", style="danger", confirm="?")])])
+    form = PanelPage.model_validate(page.model_dump(mode="json")).blocks[0]
+    assert [(b.action, b.style) for b in form.buttons] == [("delete", "danger")]
+    assert Form(action="x").buttons == []                     # старые формы — без изменений
