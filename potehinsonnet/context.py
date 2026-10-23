@@ -11,10 +11,12 @@
 import json
 import os
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
 from potehinsonnet.manifest import ManifestError, PluginManifest, load_manifest
+from potehinsonnet.storage import DataDir
 
 DEFAULT_NATS_URL = "nats://localhost:4222"
 
@@ -27,6 +29,11 @@ class PluginContext:
     settings: dict[str, Any] = field(default_factory=dict)
     nats_url: str = DEFAULT_NATS_URL
     token: str = ""
+
+    @cached_property
+    def data(self) -> DataDir:
+        """Файлы данных плагина: ctx.data.collection("pets.json", Pet, key="pet_id"), ctx.data.document(...)."""
+        return DataDir(self.data_dir)
 
     @property
     def assets_dir(self) -> Path:
