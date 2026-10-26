@@ -147,17 +147,19 @@ class Table(BaseModel):
 # --- поля формы ---
 
 class TextField(BaseModel):
+    """Строка. secret=True — поле пароля (ввод скрыт точками): токены, ключи."""
+
     type: Literal["text"] = "text"
     name: str
     label: str
     value: str = ""
     placeholder: str = ""
     required: bool = False
+    secret: bool = False
 
 
 class TextArea(BaseModel):
-    """Многострочный текст: заметки, JSON, конфиги. Плагин получает строку (переводы строк — 
-).
+    """Многострочный текст: заметки, JSON, конфиги. Плагин получает строку (переводы строк — \\n).
 
     monospace — моноширинный шрифт (для кода и данных).
     """
