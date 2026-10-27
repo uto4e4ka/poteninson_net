@@ -6,6 +6,8 @@ authors = [
     {name = "Azhestkov"}
 ]
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 keywords = ["discord", "bot", "plugins", "nats"]
 classifiers = [
