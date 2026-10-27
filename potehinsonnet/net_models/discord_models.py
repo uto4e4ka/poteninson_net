@@ -1,7 +1,15 @@
-
+import base64
+from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel
+from pathlib import Path
+from typing import Any, List, Optional
 
+from pydantic import BaseModel, Field
+
+
+# ============================================================
+# ENUMS
+# ============================================================
 
 class PlaceholderType(str, Enum):
     TEXT = "text"
@@ -11,17 +19,525 @@ class PlaceholderType(str, Enum):
     USER = "user"
 
 
+class InteractionType(str, Enum):
+    CONNECT = "connect"
+    RECONNECT = "reconnect"
+    DISCONNECT = "disconnect"
+
+
+class VoiceChannelUserConnectionType(str, Enum):
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+    MOVE = "move"
+
+
+class SoundAction(str, Enum):
+    PLAY = "PLAY"
+    STOP = "STOP"
+    PAUSE = "PAUSE"
+    RESUME = "RESUME"
+
+
+class ComponentButtonStyle(str, Enum):
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    SUCCESS = "success"
+    DANGER = "danger"
+    LINK = "link"
+
+
+# ============================================================
+# BASE MODELS
+# ============================================================
+
+class Role(BaseModel):
+    id: int
+    name: str
+
+
+class Channel(BaseModel):
+    id: int
+    name: str
+
+
+class Guild(BaseModel):
+    id: int
+    name: str
+
+
 class Placeholder(BaseModel):
     type: PlaceholderType
     value: str | int
 
 
-class NatsMessage(BaseModel):
-    service:str
+class User(BaseModel):
+    id: int
+    name: str
+    display_name: str | None = None
+    avatar_url: str | None = None
+    is_bot: bool = False
+
+    # Роли и голосовой канал
+    roles: list[Role] = Field(default_factory=list)
+    voice_channel: Channel | None = None
+
+    # Состояние в голосовом канале
+    is_deaf: bool = False
+    is_mute: bool = False
+    is_streaming: bool = False
+    is_video: bool = False
+
+    # Метаданные
+    joined_at: datetime | None = None
+
+
+# ============================================================
+# EMBEDS
+# ============================================================
+
+class EmbedFooter(BaseModel):
     text: str
-    placeholders: dict[str, Placeholder] = {}
+    icon_url: str | None = None
+    proxy_icon_url: str | None = None
+
+
+class EmbedImage(BaseModel):
+    url: str
+    proxy_url: str | None = None
+    height: int | None = None
+    width: int | None = None
+
+
+class EmbedThumbnail(BaseModel):
+    url: str
+    proxy_url: str | None = None
+    height: int | None = None
+    width: int | None = None
+
+
+class EmbedVideo(BaseModel):
+    # Только для чтения.
+    # Заполняется Discord для видео.
+    url: str | None = None
+    proxy_url: str | None = None
+    height: int | None = None
+    width: int | None = None
+
+
+class EmbedProvider(BaseModel):
+    # Только для чтения.
+    name: str | None = None
+    url: str | None = None
+
+
+class EmbedAuthor(BaseModel):
+    name: str
+    url: str | None = None
+    icon_url: str | None = None
+    proxy_icon_url: str | None = None
+
+
+class EmbedField(BaseModel):
+    name: str
+    value: str
+    inline: bool = True
+
+
+class Embed(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    url: str | None = None
+    timestamp: datetime | None = None
+    color: int | None = None
+
+    footer: EmbedFooter | None = None
+    image: EmbedImage | None = None
+    thumbnail: EmbedThumbnail | None = None
+    video: EmbedVideo | None = None
+    provider: EmbedProvider | None = None
+    author: EmbedAuthor | None = None
+
+    fields: list[EmbedField] = Field(default_factory=list)
+
+
+# ============================================================
+# DISCORD COMPONENTS
+# ============================================================
+
+class ComponentButton(BaseModel):
+    """
+    Кнопка Discord.
+
+    Для link-кнопки:
+        style="link"
+        url="https://..."
+
+    Для обычной кнопки:
+        custom_id="music:skip"
+        style="secondary"
+    """
+
+    label: str | None = None
+    custom_id: str | None = None
+
+    style: ComponentButtonStyle = ComponentButtonStyle.PRIMARY
+
+    url: str | None = None
+
+    # Например: "▶️", "⏸️", "⏭️"
+    emoji: str | None = None
+
+    disabled: bool = False
+
+    context: dict | None = None
+
+
+class TextDisplay(BaseModel):
+    """
+    Components V2 Text Display.
+
+    Используется для обычного Markdown-текста внутри Container.
+    """
+
+    content: str
+
+
+class Separator(BaseModel):
+    """
+    Components V2 Separator.
+    """
+
+    divider: bool = True
+
+    # 1 = small
+    # 2 = large
+    spacing: int = 1
+
+
+class Section(BaseModel):
+    content: Optional[str] = None
+    components: Optional[List[TextDisplay]] = None
+    accessory: ComponentButton | ComponentThumbnail | None = None
+
+class ComponentThumbnail(BaseModel):
+    url: str
+    description: str | None = None
+
+# Файл едет через NATS внутри сообщения, а NATS по умолчанию пропускает до 1 МБ;
+# base64 добавляет к размеру треть — с запасом под остальное сообщение
+MAX_ATTACHMENTS_SIZE = 700 * 1024
+
+
+class Attachment(BaseModel):
+    """
+    Файл, который бот приложит к сообщению.
+
+    В контейнере на него ссылаются по имени:
+        MediaItem(url="attachment://poteha.jpg")
+        ComponentThumbnail(url="attachment://poteha.jpg")
+
+    Имя файла лучше латиницей без пробелов: так оно точно совпадёт со ссылкой.
+    Спрятать картинку под спойлер можно спойлером контейнера: Container(spoiler=True).
+    """
+
+    filename: str
+    data: str                       # содержимое в base64
+    description: str | None = None
+
+    @classmethod
+    def from_bytes(cls, content: bytes, filename: str, description: str | None = None) -> "Attachment":
+        if len(content) > MAX_ATTACHMENTS_SIZE:
+            raise ValueError(
+                f"Файл {filename} весит {len(content) // 1024} КБ — через NATS можно отправить "
+                f"до {MAX_ATTACHMENTS_SIZE // 1024} КБ"
+            )
+        return cls(filename=filename, data=base64.b64encode(content).decode("ascii"), description=description)
+
+    @classmethod
+    def from_path(cls, path: str | Path, filename: str | None = None,
+                  description: str | None = None) -> "Attachment":
+        path = Path(path)
+        return cls.from_bytes(path.read_bytes(), filename or path.name, description)
+
+    def content(self) -> bytes:
+        return base64.b64decode(self.data)
+
+
+class MediaItem(BaseModel):
+    """
+    Один элемент Media Gallery.
+
+    url — ссылка https://… или "attachment://имя" для файла из files сообщения.
+    """
+
+    url: str
+    description: str | None = None
+
+
+class MediaGallery(BaseModel):
+    """
+    Components V2 Media Gallery.
+    """
+
+    items: list[MediaItem] = Field(default_factory=list)
+
+
+class ActionRow(BaseModel):
+    """
+    Action Row со стандартными Discord-кнопками.
+    """
+
+    components: list[ComponentButton] = Field(default_factory=list)
+
+
+class Container(BaseModel):
+    """
+    Discord Components V2 Container.
+
+    Внутри Container можно размещать:
+    - TextDisplay
+    - Section
+    - MediaGallery
+    - Separator
+    - ActionRow
+    """
+
+    accent_color: int | None = None
+    spoiler: bool = False
+
+    components: list[
+        TextDisplay
+        | Section
+        | MediaGallery
+        | Separator
+        | ActionRow
+    ] = Field(default_factory=list)
+
+class ExecutedComponent(BaseModel):
+    id:str
+    user:User
+    guild:Guild
+    channel:Channel
+    task_id:str
+    context: dict | None = None
+
+class ExecutedComponentResponse(BaseModel):
+    message:str = ""
+    embeds: list[Embed] = Field(
+        default_factory=list
+    )
+    containers: list[Container] = Field(
+        default_factory=list
+    )
+    files: list[Attachment] = Field(default_factory=list)
+    ephemeral:bool = False
+    is_finish:bool = True
+    # True — заменить сообщение, на котором нажали кнопку (меню, анимация); False — прислать новое
+    edit: bool = False
+
+
+# ============================================================
+# MESSAGES
+# ============================================================
 
 class DiscordMessage(BaseModel):
-    username:str
-    user_id:str
-    text:str
+    user: User
+    text: str
+    channel_id: int
+
+
+class NatsMessage(BaseModel):
+    service: str
+    text: str
+
+    placeholders: dict[str, Placeholder] = Field(
+        default_factory=dict
+    )
+
+    channel_id: int
+
+    embeds: list[Embed] = Field(
+        default_factory=list
+    )
+
+    containers: list[Container] = Field(
+        default_factory=list
+    )
+
+    # Файлы для сообщения; в контейнере — url="attachment://имя"
+    files: list[Attachment] = Field(default_factory=list)
+
+class DiscordMessageEdit(BaseModel):
+    message_id: int
+    message: NatsMessage
+
+class DiscordMessageRemove(BaseModel):
+    channel_id: int
+    message_id: int
+
+
+class DiscordMessageResponse(BaseModel):
+    channel_id: int
+    message_id: int
+
+
+# ============================================================
+# COMMAND
+# ============================================================
+
+class CommandArgument(BaseModel):
+    name: str
+    type: str = "str"
+    required: bool = True
+    description: str = ""
+    default: Any = None
+
+
+class Command(BaseModel):
+    name: str
+    description: str
+    service: str = ""
+    group: str = ""
+    tag: str
+
+    permission: str = ""
+
+    ephemeral: bool = True
+
+    # Антиспам: один игрок может вызывать команду не чаще раза в cooldown секунд (0 — без ограничения).
+    # Проверяет бот до отправки плагину, лишний вызов получает ответ, видимый только ему.
+    cooldown: float = Field(default=0, ge=0)
+
+    args: list[CommandArgument] = Field(
+        default_factory=list
+    )
+
+
+class ExecutedArgs(BaseModel):
+    name: str
+    value: str
+    type: str
+    is_required: bool = False
+
+
+class ExecutedCommand(BaseModel):
+    service: str
+    tag: str
+
+    user: User
+    guild: Guild
+    channel: Channel
+
+    entity_id: str = ""
+
+    reply_to: str = ""
+
+    entity_type: InteractionType = (
+        InteractionType.CONNECT
+    )
+
+    args: list[ExecutedArgs] = Field(
+        default_factory=list
+    )
+
+
+class ExecutedCommandResponse(BaseModel):
+    """
+    Ответ после выполнения команды.
+
+    Старый API:
+        message
+        embeds
+        buttons
+
+    Components V2:
+        containers
+    """
+
+    message: str = ""
+
+    ephemeral: bool = True
+
+    # Старые Embed
+    embeds: list[Embed] = Field(
+        default_factory=list
+    )
+
+    # Старые кнопки
+    buttons: list[ComponentButton] = Field(
+        default_factory=list
+    )
+
+    # Components V2
+    containers: list[Container] = Field(
+        default_factory=list
+    )
+
+    # Файлы для ответа; в контейнере — url="attachment://имя"
+    files: list[Attachment] = Field(default_factory=list)
+
+    is_final: bool = False
+
+
+# ============================================================
+# VOICE
+# ============================================================
+
+class VoiceChannelConnectInteraction(BaseModel):
+    channel_id: int
+
+    interaction_type: InteractionType = (
+        InteractionType.CONNECT
+    )
+
+
+class VoiceChannelUserConnectionEvent(BaseModel):
+    user: User
+
+    after_channel: Channel | None = None
+    before_channel: Channel | None = None
+
+    guild: Guild | None = None
+
+    action: VoiceChannelUserConnectionType
+
+
+class VoiceChannel(BaseModel):
+    channel: Channel | None
+    guild: Guild | None = None
+
+
+class VoiceChannelPlaySound(VoiceChannel):
+    sound: str
+    track_id: str
+
+    before_options: str | None = None
+    options: str | None = None
+
+
+class VoiceConnectionStatus(VoiceChannel):
+    connected: bool
+
+    playing: bool = False
+    paused: bool = False
+
+
+class VoiceConnectionRequest(VoiceChannel):
+    interaction_type: InteractionType = (
+        InteractionType.CONNECT
+    )
+
+
+class VoiceConnectionResponse(VoiceConnectionStatus):
+    success: bool = True
+    error: str | None = None
+
+
+class VoicePlayingCallback(BaseModel):
+    success: bool = True
+    message: str | None = None
+
+
+class SoundControl(BaseModel):
+    guild_id: int
+    action: SoundAction
