@@ -1,0 +1,13 @@
+# Окружения и кэши
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Сборки — их делает CI при релизе (.github/workflows/release.yml)
+dist/
+build/
+*.egg-info/

@@ -1,16 +1,28 @@
 [project]
 name = "potehinsonnet"
 version = "0.19.0"
-description = ""
+description = "Плагины для Discord-бота Potehinson: команды, кнопки, веб-панель и данные через NATS"
 authors = [
     {name = "Azhestkov"}
 ]
+readme = "README.md"
 requires-python = ">=3.14"
+keywords = ["discord", "bot", "plugins", "nats"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: AsyncIO",
+    "Typing :: Typed",
+]
 dependencies = [
     "nats-py (>=2.15.0,<3.0.0)",
     "pydantic (>=2.13.5,<3.0.0)",
 ]
 
+
+[project.urls]
+Repository = "https://github.com/uto4e4ka/poteninson_net"
+Issues = "https://github.com/uto4e4ka/poteninson_net/issues"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
