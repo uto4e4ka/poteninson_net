@@ -29,6 +29,11 @@ def page_subject(plugin: str) -> str:
     return f"panel.page.{plugin}"
 
 
+def guest_path(plugin: str, page: str, token: str) -> str:
+    """Адрес гостевой страницы в панели (без входа, только просмотр): ссылкой Link(url=…) на странице плагина."""
+    return f"/guest/{plugin}/{page}/{token}"
+
+
 def action_subject(plugin: str) -> str:
     """Кнопка или форма на странице плагина. Тело — ActionRequest, ответ — PanelResult."""
     return f"panel.action.{plugin}"
@@ -50,6 +55,8 @@ class PanelPageInfo(BaseModel):
     group: str = ""
     # bot — настройки на весь бот (только владелец бота), guild — настройки сервера (и админы сервера)
     scope: PageScope = "guild"
+    # Можно открыть по гостевой ссылке (guest_path): без входа, только просмотр — формы и кнопки панель уберёт
+    guest: bool = False
 
 
 # ============================================================
@@ -356,6 +363,15 @@ class PanelContext(BaseModel):
     # Сервер, из настроек которого открыли страницу; None — страница открыта в настройках всего бота
     guild_id: int | None = None
     user: PanelActor
+    # Страницу открыли по гостевой ссылке: код из ссылки (плагин сам решает, чей он, и что показать);
+    # guild_id тогда None, user — «Гость»
+    guest_token: str | None = None
+    # Параметры из адреса гостевой страницы (?period=week) — переключатели вида, раз форм у гостя нет
+    params: dict[str, str] = Field(default_factory=dict)
+
+    @property
+    def guest(self) -> bool:
+        return self.guest_token is not None
 
 
 class PageRequest(PanelContext):
