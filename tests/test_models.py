@@ -58,3 +58,10 @@ def test_container_roundtrip_keeps_component_types():
 
 def test_command_response_is_not_final_by_default():
     assert ExecutedCommandResponse().is_final is False
+
+
+def test_discord_message_guild_is_optional():
+    from potehinsonnet.net_models.discord_models import DiscordMessage
+    old = DiscordMessage.model_validate({"user": {"id": 1, "name": "u"}, "text": "hi", "channel_id": 2})
+    assert old.guild_id is None
+    assert DiscordMessage(user=old.user, text="hi", channel_id=2, guild_id=5).guild_id == 5

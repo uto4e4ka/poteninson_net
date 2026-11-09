@@ -345,6 +345,8 @@ class DiscordMessage(BaseModel):
     user: User
     text: str
     channel_id: int
+    # Сервер, где написано сообщение; None — личка (или старый бот, который его не присылает)
+    guild_id: int | None = None
 
 
 class NatsMessage(BaseModel):
