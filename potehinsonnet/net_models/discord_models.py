@@ -316,7 +316,8 @@ class Container(BaseModel):
 class ExecutedComponent(BaseModel):
     id:str
     user:User
-    guild:Guild
+    # None — кнопку нажали в личных сообщениях (DiscordProvider.send_direct_message)
+    guild:Guild | None = None
     channel:Channel
     task_id:str
     context: dict | None = None
@@ -354,7 +355,8 @@ class NatsMessage(BaseModel):
         default_factory=dict
     )
 
-    channel_id: int
+    # В личные сообщения (DirectMessage) не нужен — канал лички бот найдёт сам
+    channel_id: int = 0
 
     embeds: list[Embed] = Field(
         default_factory=list
@@ -366,6 +368,12 @@ class NatsMessage(BaseModel):
 
     # Файлы для сообщения; в контейнере — url="attachment://имя"
     files: list[Attachment] = Field(default_factory=list)
+
+class DirectMessage(BaseModel):
+    """Сообщение в личку пользователю. Если он закрыл личные сообщения — запрос завершится ошибкой."""
+    user_id: int
+    message: NatsMessage
+
 
 class DiscordMessageEdit(BaseModel):
     message_id: int

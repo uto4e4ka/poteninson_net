@@ -78,7 +78,7 @@ def create_plugin(ctx: PluginContext) -> Plugin:
 |---|---|
 | `Plugin`, `PluginContext` | плагин, его настройки (`ctx.settings`), папка данных, адрес NATS — всё от хоста |
 | `@plugin.command`, `@plugin.button` | слэш-команды и кнопки Discord; ответ — один или поток кадров (анимация) |
-| `plugin.discord` | отправить, изменить, удалить сообщение; голосовые каналы |
+| `plugin.discord` | отправить, изменить, удалить сообщение; написать в личку (`send_direct_message`); голосовые каналы |
 | `@plugin.panel_page`, `panel_action` | страницы веб-панели из блоков (`net_models.panel_ui`): текст, таблицы, формы, кнопки, разделы, загрузка файлов |
 | `ctx.data` (`storage`) | данные плагина в JSON: `collection`, `document`, `file` — проверка моделью pydantic, атомарная запись, битые файлы откладываются, а не затираются |
 | `plugin.files` (`files`) | большие файлы через NATS Object Store: загрузка из панели и выдача на скачивание |
