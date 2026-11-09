@@ -149,6 +149,7 @@ class Plugin:
 
     def panel_page(
             self, page_id: str, title: str, icon: str = "🧩", group: str = "", scope: PageScope = "guild",
+            guest: bool = False,
     ) -> Callable[[PageHandler], PageHandler]:
         """Страница плагина в веб-панели. Функция получает PanelContext и возвращает PanelPage.
 
@@ -156,10 +157,13 @@ class Plugin:
         scope — где страница по умолчанию: "guild" — в настройках каждого сервера (ctx.guild_id — этот
         сервер), "bot" — в настройках всего бота, только владельцу (ctx.guild_id — None). Владелец бота
         может переложить страницу в панели.
+        guest — страницу можно открыть по гостевой ссылке без входа (panel_ui.guest_path): тогда
+        ctx.guest_token — код из ссылки (плагин сам проверяет его и решает, что показать), ctx.guild_id — None,
+        ctx.params — параметры из адреса. Формы и кнопки гостю панель не покажет.
         """
 
         self._ensure_not_started()
-        return self.panel.page(page_id, title, icon, group, scope)
+        return self.panel.page(page_id, title, icon, group, scope, guest)
 
     def panel_action(self, action: str) -> Callable[[ActionHandler], ActionHandler]:
         """Кнопка или форма на странице плагина. Функция получает PanelContext и значения полей.

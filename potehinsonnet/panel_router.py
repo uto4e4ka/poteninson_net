@@ -32,11 +32,11 @@ class PanelRouter:
         self._subs = []
 
     def page(self, page_id: str, title: str, icon: str = "🧩", group: str = "",
-             scope: PageScope = "guild") -> Callable[[PageHandler], PageHandler]:
+             scope: PageScope = "guild", guest: bool = False) -> Callable[[PageHandler], PageHandler]:
         """Страница: функция получает PanelContext и возвращает PanelPage. О scope — см. Plugin.panel_page."""
 
         def decorator(func: PageHandler) -> PageHandler:
-            info = PanelPageInfo(id=page_id, title=title, icon=icon, group=group, scope=scope)
+            info = PanelPageInfo(id=page_id, title=title, icon=icon, group=group, scope=scope, guest=guest)
             self.pages[page_id] = (info, func)
             return func
 
@@ -73,8 +73,11 @@ class PanelRouter:
         entry = self.pages.get(request.page)
         if entry is None:
             raise ValueError(f"Страница {request.page} не найдена")
-        _, handler = entry
-        page = await handler(PanelContext(guild_id=request.guild_id, user=request.user))
+        info, handler = entry
+        if request.guest_token is not None and not info.guest:
+            raise ValueError(f"Страница {request.page} не открывается по гостевой ссылке")
+        page = await handler(PanelContext(guild_id=request.guild_id, user=request.user,
+                                          guest_token=request.guest_token, params=request.params))
         return page.model_dump(mode="json")
 
     async def on_action(self, body: dict) -> dict:
@@ -85,6 +88,8 @@ class PanelRouter:
 
         try:
             values = {**request.values, **request.files}
+            if request.guest_token is not None:
+                raise PermissionError("Гостям действия недоступны")
             result = await handler(PanelContext(guild_id=request.guild_id, user=request.user), values)
         except Exception as e:
             result = PanelResult(ok=False, message=str(e) or type(e).__name__)

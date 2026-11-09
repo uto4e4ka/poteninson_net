@@ -73,3 +73,42 @@ def test_textarea_field_roundtrip():
     page = PanelPage(blocks=[Form(action="save", fields=[TextArea(name="text", label="JSON", value='{"a": 1}\n', rows=20)])])
     field = PanelPage.model_validate(page.model_dump(mode="json")).blocks[0].fields[0]
     assert type(field).__name__ == "TextArea" and field.value == '{"a": 1}\n' and field.monospace
+
+
+async def test_guest_page_gets_token_and_params_only_when_allowed():
+    import pytest
+    from potehinsonnet import Plugin
+    from potehinsonnet.net_models.panel_ui import PanelPage, Text, guest_path
+    from potehinsonnet.net_models.system_models import Service
+    from potehinsonnet.testing import FakeNats
+
+    plugin = Plugin(Service(name="pets", label="Pets", author="", version="0"), nats=FakeNats().client())
+    seen = []
+
+    @plugin.panel_page("public", title="Витрина", guest=True)
+    async def public(ctx):
+        seen.append((ctx.guest, ctx.guest_token, ctx.params, ctx.guild_id))
+        return PanelPage(blocks=[Text("ok")])
+
+    @plugin.panel_page("admin", title="Настройки")
+    async def admin(ctx):
+        return PanelPage()
+
+    @plugin.panel_action("save")
+    async def save(ctx, values):
+        return "сохранено"
+
+    infos = {info.id: info for info, _ in plugin._pages.values()}
+    assert (infos["public"].guest, infos["admin"].guest) == (True, False)
+    assert guest_path("pets", "public", "abc") == "/guest/pets/public/abc"
+
+    guest = {"user": {"id": 0, "name": "Гость"}, "guest_token": "abc", "params": {"period": "week"}}
+    await plugin.panel.on_page({**guest, "page": "public"})
+    assert seen == [(True, "abc", {"period": "week"}, None)]
+    await plugin.panel.on_page({"user": {"id": 1, "name": "admin"}, "guild_id": 5, "page": "public"})
+    assert seen[-1] == (False, None, {}, 5)
+
+    with pytest.raises(ValueError, match="гостевой"):
+        await plugin.panel.on_page({**guest, "page": "admin"})
+    result = await plugin.panel.on_action({**guest, "page": "public", "action": "save"})
+    assert result["ok"] is False and "Гостям" in result["message"]
