@@ -176,3 +176,8 @@ async def test_error_points_to_plugin_line_not_library(tmp_path):
         await build(PluginContext.load(root, env={}))
     message = str(error.value)
     assert "ImportError" in message and "broken.py, строка 2: from json import no_such_name" in message
+
+
+def test_direct_message_permission_is_known():
+    from potehinsonnet.manifest import DISCORD_PERMISSIONS
+    assert "direct_message" in DISCORD_PERMISSIONS
